@@ -208,6 +208,7 @@ bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 
 	res = performRequest(url, PUT, WriteMemoryCallback, request, (void*) &reply);
 
+
 	if (res == CURLE_OK) {
 		js_root = json_loads(reply.memory, 0, &error);
 
@@ -300,6 +301,7 @@ bool etcd_watch(char* key, int index, char* action, char* prevValue, char* value
 	res = performRequest(url, GET, WriteMemoryCallback, NULL, (void*) &reply);
 
 	if (res == CURLE_OK) {
+
 		js_root = json_loads(reply.memory, 0, &error);
 
 		if (js_root != NULL) {
@@ -320,9 +322,11 @@ bool etcd_watch(char* key, int index, char* action, char* prevValue, char* value
 		if ((js_prevValue != NULL) && (json_is_string(js_prevValue))) {
 			strncpy(prevValue, json_string_value(js_prevValue), MAX_VALUE_LENGTH);
 		}
-		if ((js_value != NULL) && (js_rkey != NULL) && (js_action != NULL) && (json_is_string(js_value)) && (json_is_string(js_rkey)) && (json_is_string(js_action))) {
-			strncpy(rkey, json_string_value(js_rkey), MAX_KEY_LENGTH);
+		if ((js_value != NULL) && (json_is_string(js_value))) {
 			strncpy(value, json_string_value(js_value), MAX_VALUE_LENGTH);
+		}
+		if ((js_rkey != NULL) && (js_action != NULL) && (json_is_string(js_rkey)) && (json_is_string(js_action))) {
+			strncpy(rkey, json_string_value(js_rkey), MAX_KEY_LENGTH);
 			strncpy(action, json_string_value(js_action), MAX_ACTION_LENGTH);
 
 			retVal = true;
@@ -330,6 +334,7 @@ bool etcd_watch(char* key, int index, char* action, char* prevValue, char* value
 		if (js_root != NULL) {
 			json_decref(js_root);
 		}
+
 	}
 
 	if (reply.memory) {

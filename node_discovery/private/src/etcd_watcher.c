@@ -191,16 +191,19 @@ static void* etcdWatcher_run(void* data) {
 		char preValue[MAX_VALUE_LENGTH];
 		char action[MAX_ACTION_LENGTH];
 
-		if (etcd_watch(rootPath, 0, &action[0], &preValue[0], &value[0], &rkey[0]) == true) {
+		if (etcd_watch(rootPath, highestModified+1, &action[0], &preValue[0], &value[0], &rkey[0]) == true) {
 			if (strcmp(action, "set") == 0) {
 				node_discovery_addNode(node_discovery, &rkey[0], &value[0]);
 			} else if (strcmp(action, "delete") == 0) {
+				node_discovery_removeNode(node_discovery, &rkey[0]);
+			} else if (strcmp(action, "expire") == 0) {
 				node_discovery_removeNode(node_discovery, &rkey[0]);
 			} else if (strcmp(action, "update") == 0) {
 				// TODO
 			} else {
 				fw_log(logger, OSGI_FRAMEWORK_LOG_INFO, "Unexpected action: %s", action);
 			}
+			highestModified++;
 		}
 
 		// update own framework uuid
@@ -257,7 +260,7 @@ celix_status_t etcdWatcher_create(node_discovery_pt node_discovery, bundle_conte
 		return CELIX_BUNDLE_EXCEPTION;
 	}
 
-	etcdWatcher_addOwnNode((*watcher));
+	etcdWatcher_addOwnNode(*watcher);
 
 	if ((status = celixThreadMutex_create(&(*watcher)->watcherLock, NULL)) != CELIX_SUCCESS) {
 		return status;
@@ -289,12 +292,9 @@ celix_status_t etcdWatcher_destroy(etcd_watcher_pt watcher) {
 	celixThread_join(watcher->watcherThread, NULL);
 
 	// register own framework
-	if ((status = etcdWatcher_getLocalNodePath(
-			watcher->node_discovery->context, &localNodePath[0])) != CELIX_SUCCESS) {
-		return status;
-	}
+	status = etcdWatcher_getLocalNodePath(watcher->node_discovery->context, &localNodePath[0]);
 
-	if (etcd_del(localNodePath) == false)
+	if (status != CELIX_SUCCESS || etcd_del(localNodePath) == false)
 	{
 		fw_log(logger, OSGI_FRAMEWORK_LOG_WARNING, "Cannot remove local discovery registration.");
 	}
