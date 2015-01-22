@@ -20,24 +20,22 @@ find_package(Jansson REQUIRED)
 
 include_directories("${CURL_INCLUDE_DIR}")
 include_directories("${JANSSON_INCLUDE_DIR}")
+include_directories("${CELIX_INCLUDE_DIRS}/log_service")
+include_directories("${CELIX_INCLUDE_DIRS}/remote_service_admin")
 include_directories("${PROJECT_SOURCE_DIR}/wiring_endpoint/public/include")
 include_directories("private/include")
-include_directories("public/include")
 
 
-SET(BUNDLE_SYMBOLICNAME "org.inaetics.node_discovery.etcd")
+SET(BUNDLE_SYMBOLICNAME "org.inaetics.wiring_topology_manager")
 SET(BUNDLE_VERSION "0.0.1")
-SET(BUNDLE_NAME "org.inaetics.node_discovery.etcd.NodeDiscovery")
+SET(BUNDLE_NAME "org.inaetics.wiring_topology_manager.WiringTopologyManager")
 
 
-bundle(org.inaetics.node_discovery.etcd.NodeDiscovery SOURCES
-	private/src/etcd.c
-	private/src/etcd_watcher.c
-	private/src/node_discovery.c
-	private/src/node_discovery_activator.c
-	private/src/node_description_writer.c
+bundle(org.inaetics.wiring_topology_manager.WiringTopologyManager SOURCES
+	private/src/wiring_topology_manager.c
+	private/src/wiring_topology_manager_activator.c
 )
 
-install_bundle(org.inaetics.node_discovery.etcd.NodeDiscovery)
+install_bundle(org.inaetics.wiring_topology_manager.WiringTopologyManager)
 	
-target_link_libraries(org.inaetics.node_discovery.etcd.NodeDiscovery ${CURL_LIBRARIES} ${JANSSON_LIBRARIES})
+target_link_libraries(org.inaetics.wiring_topology_manager.WiringTopologyManager ${CURL_LIBRARIES} ${JANSSON_LIBRARIES})

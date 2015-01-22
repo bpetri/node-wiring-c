@@ -24,7 +24,7 @@ struct etcd_watcher {
 #define MAX_LOCALNODE_LENGTH	256
 
 #define CFG_ETCD_ROOT_PATH		"NODE_DISCOVERY_ETCD_ROOT_PATH"
-#define DEFAULT_ETCD_ROOTPATH	"node_discovery"
+#define DEFAULT_ETCD_ROOTPATH	"inaetics/node_discovery"
 
 #define CFG_ETCD_SERVER_IP		"NODE_DISCOVERY_ETCD_SERVER_IP"
 #define DEFAULT_ETCD_SERVER_IP	"127.0.0.1"
@@ -43,10 +43,10 @@ static celix_status_t etcdWatcher_getRootPath(bundle_context_pt context, char* r
 	char* rootPath = NULL;
 
 	if (((bundleContext_getProperty(context, CFG_ETCD_ROOT_PATH, &rootPath)) != CELIX_SUCCESS) || (!rootPath)) {
-		strcpy(rootNode, DEFAULT_ETCD_ROOTPATH);
+		strncpy(rootNode, DEFAULT_ETCD_ROOTPATH,MAX_ROOTNODE_LENGTH);
 	}
 	else {
-		strcpy(rootNode, rootPath);
+		strncpy(rootNode, rootPath,MAX_ROOTNODE_LENGTH);
 	}
 
 	return status;
@@ -175,14 +175,16 @@ static celix_status_t etcdWatcher_addOwnNode(etcd_watcher_pt watcher)
 static void* etcdWatcher_run(void* data) {
 	etcd_watcher_pt watcher = (etcd_watcher_pt) data;
 	time_t timeBeforeWatch = time(NULL);
-	static char rootPath[MAX_ROOTNODE_LENGTH];
+	char rootPath[MAX_ROOTNODE_LENGTH];
 	int highestModified = 0;
 
 	node_discovery_pt node_discovery = watcher->node_discovery;
 	bundle_context_pt context = node_discovery->context;
 
+	memset(rootPath,0,MAX_ROOTNODE_LENGTH);
+
 	etcdWatcher_addAlreadyExistingNodes(node_discovery, &highestModified);
-	etcdWatcher_getRootPath(context, &rootPath[0]);
+	etcdWatcher_getRootPath(context, rootPath);
 
 	while (watcher->running) {
 

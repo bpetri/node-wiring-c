@@ -31,17 +31,41 @@
 #include "service_tracker.h"
 #include "service_registration.h"
 #include "constants.h"
-
+//#include "remote_constants.h"
 #include "celix_log.h"
+
 #include "node_discovery.h"
 #include "node_discovery_impl.h"
+#include "wiring_endpoint_listener.h"
+#include "wiring_endpoint_description.h"
 
 
 struct activator {
 	bundle_context_pt context;
 	node_discovery_pt node_discovery;
+
+	service_tracker_pt wiringEndpointListenerTracker;
+	wiring_endpoint_listener_pt wiringEndpointListener;
+	service_registration_pt wiringEndpointListenerService;
 };
 
+/*
+static celix_status_t bundleActivator_createWEPLTracker(struct activator *activator, service_tracker_pt *tracker) {
+	celix_status_t status = CELIX_SUCCESS;
+
+	service_tracker_customizer_pt customizer = NULL;
+
+	status = serviceTrackerCustomizer_create(activator->discovery,
+			discovery_endpointListenerAdding, discovery_endpointListenerAdded, discovery_endpointListenerModified, discovery_endpointListenerRemoved,
+			&customizer);
+
+	if (status == CELIX_SUCCESS) {
+		status = serviceTracker_create(activator->context, (char *) OSGI_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
+	}
+
+	return status;
+}
+*/
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
 	celix_status_t status = CELIX_SUCCESS;

@@ -29,6 +29,7 @@ celix_status_t node_discovery_stop(node_discovery_pt node_discovery);
 
 celix_status_t node_discovery_createNodeDescription(node_discovery_pt node_discovery, node_description_pt* node_description);
 celix_status_t node_discovery_destroyNodeDescription(node_description_pt* node_description);
+
 celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* key, char* value);
 celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char* key);
 

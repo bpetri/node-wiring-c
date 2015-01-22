@@ -19,7 +19,6 @@
 
 #include "etcd_watcher.h"
 #include "node_description_impl.h"
-#include "node_discovery.h"
 #include "node_discovery_impl.h"
 
 
@@ -113,8 +112,8 @@ celix_status_t node_discovery_createNodeDescription(node_discovery_pt node_disco
 			(*node_description)->frameworkUUID = fwuuid;
 			(*node_description)->properties = properties_create();
 
-			properties_set((*node_description)->properties, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inZoneIdentifier);
-			properties_set((*node_description)->properties, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inNodeIdentifier);
+			properties_set((*node_description)->properties, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inNodeIdentifier);
+			properties_set((*node_description)->properties, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inZoneIdentifier);
 		}
 	}
 
@@ -140,7 +139,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 	hashMap_put(node_discovery->discoveredNodes, key, value);
 	celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
 
-	printf("\nNode %s added\n", key);
+	printf("\nNode <%s,%s> added\n", key,value);
 
 	return status;
 }
