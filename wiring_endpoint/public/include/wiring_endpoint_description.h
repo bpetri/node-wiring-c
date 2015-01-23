@@ -30,6 +30,9 @@
 #include "properties.h"
 #include "array_list.h"
 
+#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY		"ep_url"
+#define WIRING_ENDPOINT_DESCRIPTION_PORT_KEY	"ep_port"
+
 struct wiring_endpoint_description {
     char *frameworkUUID;
     char *url;
@@ -39,7 +42,7 @@ struct wiring_endpoint_description {
 
 typedef struct wiring_endpoint_description *wiring_endpoint_description_pt;
 
-celix_status_t wiringEndpointDescription_create(properties_pt properties, wiring_endpoint_description_pt *wiringEndpointDescription);
+celix_status_t wiringEndpointDescription_create(char* uuid,properties_pt properties, wiring_endpoint_description_pt *wiringEndpointDescription);
 celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt description);
 
 

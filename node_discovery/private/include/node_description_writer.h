@@ -6,5 +6,6 @@
 #include "node_description.h"
 
 celix_status_t node_description_writer_nodeDescToString(node_description_pt inNodeDesc, char** outStr);
+celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_description_pt* inNodeDesc);
 
 #endif

@@ -20,6 +20,7 @@ find_package(Jansson REQUIRED)
 
 include_directories("${CURL_INCLUDE_DIR}")
 include_directories("${JANSSON_INCLUDE_DIR}")
+include_directories("${CELIX_INCLUDE_DIRS}/remote_service_admin")
 include_directories("${PROJECT_SOURCE_DIR}/wiring_endpoint/public/include")
 include_directories("private/include")
 include_directories("public/include")
@@ -36,6 +37,8 @@ bundle(org.inaetics.node_discovery.etcd.NodeDiscovery SOURCES
 	private/src/node_discovery.c
 	private/src/node_discovery_activator.c
 	private/src/node_description_writer.c
+	private/src/node_description.c
+	private/src/wiring_endpoint_description.c
 )
 
 install_bundle(org.inaetics.node_discovery.etcd.NodeDiscovery)

@@ -97,7 +97,9 @@ static celix_status_t etcdWatcher_addAlreadyExistingNodes(node_discovery_pt node
 			int modIndex;
 
 			if (etcd_get(key, &value[0], &action[0], &modIndex) == true) {
-				node_discovery_addNode(node_discovery, key, &value[0]);
+				node_description_pt node_desc = NULL;
+				node_description_writer_stringToNodeDesc(&value[0],&node_desc);
+				node_discovery_addNode(node_discovery, key, node_desc);
 
 				if (modIndex > *highestModified) {
 					*highestModified = modIndex;
@@ -195,7 +197,9 @@ static void* etcdWatcher_run(void* data) {
 
 		if (etcd_watch(rootPath, highestModified+1, &action[0], &preValue[0], &value[0], &rkey[0]) == true) {
 			if (strcmp(action, "set") == 0) {
-				node_discovery_addNode(node_discovery, &rkey[0], &value[0]);
+				node_description_pt node_desc = NULL;
+				node_description_writer_stringToNodeDesc(&value[0],&node_desc);
+				node_discovery_addNode(node_discovery, &rkey[0], node_desc);
 			} else if (strcmp(action, "delete") == 0) {
 				node_discovery_removeNode(node_discovery, &rkey[0]);
 			} else if (strcmp(action, "expire") == 0) {

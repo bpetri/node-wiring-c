@@ -20,7 +20,6 @@ find_package(Jansson REQUIRED)
 
 include_directories("${CURL_INCLUDE_DIR}")
 include_directories("${JANSSON_INCLUDE_DIR}")
-include_directories("${CELIX_INCLUDE_DIRS}/log_service")
 include_directories("${CELIX_INCLUDE_DIRS}/remote_service_admin")
 include_directories("${PROJECT_SOURCE_DIR}/wiring_endpoint/public/include")
 include_directories("private/include")
