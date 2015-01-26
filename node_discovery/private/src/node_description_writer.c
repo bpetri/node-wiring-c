@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "celix_errno.h"
 #include "properties.h"
@@ -15,6 +16,9 @@
 
 #define NODE_DESCRIPTION_ASSUMED_ENTRY_SIZE	256
 
+#define NODE_DESCRIPTION_STRING_MAX_LEN 	16384
+
+/*
 static celix_status_t node_description_writer_escapeString(char* in, char *out)
 {
 	celix_status_t status = CELIX_SUCCESS;
@@ -46,7 +50,7 @@ static celix_status_t node_description_writer_propertiesToString(properties_pt i
 		int alreadyCopied = 0;
 		int currentSize = hashMap_size(inProperties) * NODE_DESCRIPTION_ASSUMED_ENTRY_SIZE * 0;
 
-		*outStr = calloc(1, currentSize);
+ *outStr = calloc(1, currentSize);
 
 		hash_map_iterator_pt iterator = hashMapIterator_create(inProperties);
 		while (hashMapIterator_hasNext(iterator) && status == CELIX_SUCCESS) {
@@ -66,7 +70,7 @@ static celix_status_t node_description_writer_propertiesToString(properties_pt i
 
 			while (currentSize - alreadyCopied < strlen(outEntryStr) && status == CELIX_SUCCESS) {
 				currentSize += NODE_DESCRIPTION_ASSUMED_ENTRY_SIZE;
-				*outStr = realloc(*outStr, currentSize);
+ *outStr = realloc(*outStr, currentSize);
 
 				if (!*outStr) {
 					status = CELIX_ENOMEM;
@@ -89,16 +93,77 @@ static celix_status_t node_description_writer_propertiesToString(properties_pt i
 
 	return status;
 }
+ */
 
 
 celix_status_t node_description_writer_nodeDescToString(node_description_pt inNodeDesc, char** outStr)
 {
 	celix_status_t status = CELIX_SUCCESS;
 
-	status = node_description_writer_propertiesToString(inNodeDesc->properties, outStr);
+	char* ret = calloc(1, NODE_DESCRIPTION_STRING_MAX_LEN);
+
+	if(ret==NULL){
+		return CELIX_ENOMEM;
+	}
+
+	char* node_desc_str=ret;
+
+	hash_map_iterator_pt node_props_it = hashMapIterator_create(inNodeDesc->properties);
+
+	while(hashMapIterator_hasNext(node_props_it)){
+		hash_map_entry_pt node_props_entry = hashMapIterator_nextEntry(node_props_it);
+		char* key=(char*)hashMapEntry_getKey(node_props_entry);
+		char* value=(char*)hashMapEntry_getValue(node_props_entry);
+		int pair_len=strlen(key)+strlen(value)+3;
+		snprintf(node_desc_str,pair_len,"%s=%s|",key,value);
+		node_desc_str+=pair_len-1;
+	}
+
+	hashMapIterator_destroy(node_props_it);
+
+	if(arrayList_size(inNodeDesc->wiring_ep_descriptions_list)>0){
+		// Node Description properties done, let's go through wiring endpoint list
+		ret[strlen(ret)-1]='#';
+
+
+		array_list_iterator_pt ep_it = arrayListIterator_create(inNodeDesc->wiring_ep_descriptions_list);
+
+		while(arrayListIterator_hasNext(ep_it)){
+			wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
+			int port_len= ( wep_desc->port==0 ) ? 1 : ((int)log10(fabs(wep_desc->port)))+1;
+			int ep_base_len=strlen(WIRING_ENDPOINT_DESCRIPTION_URL_KEY)+strlen(wep_desc->url)+strlen(WIRING_ENDPOINT_DESCRIPTION_PORT_KEY)+port_len+4;
+			snprintf(node_desc_str,ep_base_len,"%s=%s,%s=%u",WIRING_ENDPOINT_DESCRIPTION_URL_KEY,wep_desc->url,WIRING_ENDPOINT_DESCRIPTION_PORT_KEY,wep_desc->port);
+			node_desc_str+=ep_base_len-1;
+
+			hash_map_iterator_pt wep_desc_props_it = hashMapIterator_create(wep_desc->properties);
+
+			while(hashMapIterator_hasNext(wep_desc_props_it)){
+				hash_map_entry_pt wep_desc_props_entry = hashMapIterator_nextEntry(wep_desc_props_it);
+				char* key=(char*)hashMapEntry_getKey(wep_desc_props_entry);
+				char* value=(char*)hashMapEntry_getValue(wep_desc_props_entry);
+				int ep_prop_len= 3 + strlen(key) + strlen(value);
+				snprintf(node_desc_str,ep_prop_len,",%s=%s",key,value);
+				node_desc_str+=ep_prop_len-1;
+			}
+
+			hashMapIterator_destroy(wep_desc_props_it);
+
+			snprintf(node_desc_str,2,"!");
+			node_desc_str++;
+
+		}
+
+		arrayListIterator_destroy(ep_it);
+	}
+
+	ret[strlen(ret)-1]='\0';
+
+	*outStr=ret;
 
 	return status;
 }
+
+
 
 celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_description_pt* inNodeDesc){
 
@@ -106,7 +171,7 @@ celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_descrip
 
 	const char ep_list_delim[2]="#";
 	const char node_props_delim[2]="|";
-	const char ep_delim[2]=";";
+	const char ep_delim[2]="!";
 	const char ep_props_delim[2]=",";
 	const char field_delim[2]="=";
 

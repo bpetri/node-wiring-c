@@ -37,7 +37,6 @@ celix_status_t nodeDescription_create(char* uuid,properties_pt properties,node_d
 
 	arrayList_create(&((*nodeDescription)->wiring_ep_descriptions_list));
 
-
 	return status;
 }
 

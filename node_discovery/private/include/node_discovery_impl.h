@@ -15,6 +15,8 @@
 
 struct node_discovery {
 	bundle_context_pt context;
+
+	celix_thread_mutex_t ownNodeMutex;
 	node_description_pt ownNode;
 
 	celix_thread_mutex_t discoveredNodesMutex;
@@ -42,5 +44,7 @@ celix_status_t node_discovery_wiringEndpointListenerRemoved(void * handle, servi
 
 celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
 celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
+
+celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt discovery, wiring_endpoint_description_pt endpoint, bool endpointAdded);
 
 #endif /* DISCOVERY_H_ */

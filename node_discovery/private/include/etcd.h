@@ -10,7 +10,7 @@
 #define MAX_ACTION_LENGTH	64
 
 #define MAX_URL_LENGTH		256
-#define MAX_CONTENT_LENGTH	1024
+#define MAX_CONTENT_LENGTH	16384
 
 #define ETCD_JSON_NODE			"node"
 #define ETCD_JSON_PREVNODE		"prevNode"
