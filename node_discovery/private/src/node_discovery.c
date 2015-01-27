@@ -15,6 +15,7 @@
 #include "filter.h"
 #include "service_reference.h"
 #include "service_registration.h"
+#include "remote_constants.h"
 
 
 #include "etcd_watcher.h"
@@ -85,6 +86,7 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		wiringEndpointDescription_create((*node_discovery)->ownNode->nodeId,props,&wep);
 		wep->url=strdup("http://123.123.123.123");
 		wep->port=60000;
+		properties_set(wep->properties,(char*)OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,wep->frameworkUUID);
 
 		arrayList_add((*node_discovery)->ownNode->wiring_ep_descriptions_list,wep);
 
@@ -94,6 +96,7 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		wiringEndpointDescription_create((*node_discovery)->ownNode->nodeId,NULL,&wep2);
 		wep2->url=strdup("http://192.192.192.192");
 		wep2->port=50000;
+		properties_set(wep2->properties,(char*)OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,wep2->frameworkUUID);
 
 		arrayList_add((*node_discovery)->ownNode->wiring_ep_descriptions_list,wep2);
 
@@ -200,6 +203,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 	bool exists = hashMap_get(node_discovery->discoveredNodes,key);
 	if(!exists){
 		hashMap_put(node_discovery->discoveredNodes, key, node_desc);
+		printf("\nNODE_DISCOVERY: Node %s added\n", key);
 		dump_node_description(node_desc);
 	}
 	celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
@@ -239,9 +243,7 @@ celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char*
 		nodeDescription_destroy(node_desc);
 	}
 
-	printf("\nNode %s removed\n", key);
-
-	//TODO informWiringEndpointListeners
+	printf("\nNODE_DISCOVERY: Node %s removed\n", key);
 
 	return status;
 }

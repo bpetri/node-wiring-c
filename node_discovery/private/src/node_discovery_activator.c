@@ -114,7 +114,8 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 		return CELIX_ENOMEM;
 	}
 
-	sprintf(scope, "(&(%s=*)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+	//sprintf(scope, "(&(%s=*)(%s=%s))", OSGI_FRAMEWORK_OBJECTCLASS, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+	sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
 	wiring_endpoint_listener_pt wEndpointListener = calloc(1,sizeof(struct wiring_endpoint_listener));
 

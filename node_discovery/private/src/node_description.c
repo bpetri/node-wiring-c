@@ -71,7 +71,7 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription){
 
 void dump_node_description(node_description_pt node_desc){
 
-	printf("Node Description Dump for Node %s\n",node_desc->nodeId);
+	printf("\tNode Description Dump for Node %s\n",node_desc->nodeId);
 
 	hash_map_iterator_pt node_props_it = hashMapIterator_create(node_desc->properties);
 

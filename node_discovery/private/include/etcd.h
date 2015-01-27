@@ -6,7 +6,7 @@
 #define MAX_NODES			256
 
 #define MAX_KEY_LENGTH		256
-#define MAX_VALUE_LENGTH	256
+#define MAX_VALUE_LENGTH	4096
 #define MAX_ACTION_LENGTH	64
 
 #define MAX_URL_LENGTH		256
