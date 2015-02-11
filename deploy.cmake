@@ -23,3 +23,9 @@ deploy("wiring_topology_manager" BUNDLES
 		${CELIX_BUNDLES_DIR}/shell_tui.zip
         org.inaetics.wiring_topology_manager.WiringTopologyManager
       )
+
+deploy("wiring_admin" BUNDLES
+		${CELIX_BUNDLES_DIR}/shell.zip
+		${CELIX_BUNDLES_DIR}/shell_tui.zip
+      org.inaetics.wiring_admin.WiringAdmin
+      )

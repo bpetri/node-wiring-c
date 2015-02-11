@@ -18,83 +18,6 @@
 
 #define NODE_DESCRIPTION_STRING_MAX_LEN 	16384
 
-/*
-static celix_status_t node_description_writer_escapeString(char* in, char *out)
-{
-	celix_status_t status = CELIX_SUCCESS;
-	int i = 0;
-	int j = 0;
-
-	for (; i < strlen(in); i++, j++) {
-		if (in[i] == '#' || in[i] == '!' || in[i] == '=' || in[i] == ':') {
-
-			out[j] = '\\';
-			j++;
-
-		}
-		out[j] = in[i];
-	}
-
-	out[j] = '\0';
-
-	return status;
-
-}
-
-
-static celix_status_t node_description_writer_propertiesToString(properties_pt inProperties, char** outStr)
-{
-	celix_status_t status = CELIX_SUCCESS;
-
-	if (hashMap_size(inProperties) > 0) {
-		int alreadyCopied = 0;
-		int currentSize = hashMap_size(inProperties) * NODE_DESCRIPTION_ASSUMED_ENTRY_SIZE * 0;
-
- *outStr = calloc(1, currentSize);
-
-		hash_map_iterator_pt iterator = hashMapIterator_create(inProperties);
-		while (hashMapIterator_hasNext(iterator) && status == CELIX_SUCCESS) {
-			hash_map_entry_pt entry = hashMapIterator_nextEntry(iterator);
-
-			char* inKeyStr = hashMapEntry_getKey(entry);
-			char  outKeyStr[strlen(inKeyStr)*2];
-			char* inValStr = hashMapEntry_getValue(entry);
-			char  outValStr[strlen(inValStr)*2];
-
-			node_description_writer_escapeString(inKeyStr, &outKeyStr[0]);
-			node_description_writer_escapeString(inValStr, &outValStr[0]);
-
-			char outEntryStr[strlen(&outKeyStr[0]) + strlen(&outValStr[0]) +3];
-
-			snprintf(outEntryStr, sizeof(outEntryStr), "%s=%s|", &outKeyStr[0], &outValStr[0]);
-
-			while (currentSize - alreadyCopied < strlen(outEntryStr) && status == CELIX_SUCCESS) {
-				currentSize += NODE_DESCRIPTION_ASSUMED_ENTRY_SIZE;
- *outStr = realloc(*outStr, currentSize);
-
-				if (!*outStr) {
-					status = CELIX_ENOMEM;
-				}
-			}
-
-			if (status == CELIX_SUCCESS) {
-				strncpy(*outStr + alreadyCopied, &outEntryStr[0], strlen(outEntryStr)+1);
-				alreadyCopied += strlen(outEntryStr);
-			}
-		}
-		hashMapIterator_destroy(iterator);
-	}
-
-	char* ret=*outStr;
-
-	if(ret!=NULL){
-		ret[strlen(ret)-1]='\0';
-	}
-
-	return status;
-}
- */
-
 
 celix_status_t node_description_writer_nodeDescToString(node_description_pt inNodeDesc, char** outStr)
 {
@@ -140,6 +63,9 @@ celix_status_t node_description_writer_nodeDescToString(node_description_pt inNo
 			while(hashMapIterator_hasNext(wep_desc_props_it)){
 				hash_map_entry_pt wep_desc_props_entry = hashMapIterator_nextEntry(wep_desc_props_it);
 				char* key=(char*)hashMapEntry_getKey(wep_desc_props_entry);
+				if(!strncmp(key,OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID))){
+					continue;
+				}
 				char* value=(char*)hashMapEntry_getValue(wep_desc_props_entry);
 				int ep_prop_len= 3 + strlen(key) + strlen(value);
 				snprintf(node_desc_str,ep_prop_len,",%s=%s",key,value);
@@ -234,6 +160,9 @@ celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_descrip
 				}
 				else if(!strncmp(key,WIRING_ENDPOINT_DESCRIPTION_PORT_KEY,strlen(WIRING_ENDPOINT_DESCRIPTION_PORT_KEY))){
 					wEndpointDescription->port=(unsigned short)strtoul(value,NULL,10);
+				}
+				else if(!strncmp(key,OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID))){
+					//Do nothing
 				}
 				else{
 					/* Generic property*/

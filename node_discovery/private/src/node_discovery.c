@@ -19,9 +19,11 @@
 
 
 #include "etcd_watcher.h"
+#include "wiring_admin.h"
 #include "node_description_impl.h"
 #include "node_discovery_impl.h"
 #include "wiring_endpoint_listener.h"
+#include "wiring_common_utils.h"
 
 
 static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt node_discovery, node_description_pt* node_description) {
@@ -30,6 +32,10 @@ static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt 
 	char* fwuuid = NULL;
 	char* inZoneIdentifier = NULL;
 	char* inNodeIdentifier = NULL;
+	char* inWAAddress = NULL;
+	char* inWAPort = NULL;
+
+	celix_status_t ipFromItf = CELIX_ILLEGAL_ARGUMENT;
 
 	if (((bundleContext_getProperty(node_discovery->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
 		status = CELIX_ILLEGAL_STATE;
@@ -43,11 +49,36 @@ static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt 
 		inNodeIdentifier = fwuuid;
 	}
 
+	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_ADDRESS, &inWAAddress)) != CELIX_SUCCESS) || (!inWAAddress)) {
+
+		char* itf = NULL;
+		if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_ITF, &itf)) == CELIX_SUCCESS) && (itf!=NULL)) {
+			ipFromItf = wiring_getIpAddress(itf,&inWAAddress);
+			if(inWAAddress==NULL){
+				inWAAddress = (char*)DEFAULT_WA_ADDRESS;
+			}
+		}
+		else{
+			inWAAddress = (char*)DEFAULT_WA_ADDRESS;
+		}
+
+	}
+
+	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_PORT, &inWAPort)) != CELIX_SUCCESS) || (!inWAPort)) {
+		inWAPort = (char*)DEFAULT_WA_PORT;
+	}
+
 	if (status == CELIX_SUCCESS) {
 
 		properties_pt props=properties_create();
 		properties_set(props, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inNodeIdentifier);
 		properties_set(props, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inZoneIdentifier);
+		properties_set(props, NODE_DESCRIPTION_WA_ADDRESS_IDENTIFIER_KEY, inWAAddress);
+		properties_set(props, NODE_DESCRIPTION_WA_PORT_IDENTIFIER_KEY, inWAPort);
+
+		if( (ipFromItf == CELIX_SUCCESS) && inWAAddress!=NULL){
+			free(inWAAddress);
+		}
 
 		nodeDescription_create(fwuuid,props,node_description);
 	}
@@ -86,7 +117,6 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		wiringEndpointDescription_create((*node_discovery)->ownNode->nodeId,props,&wep);
 		wep->url=strdup("http://123.123.123.123");
 		wep->port=60000;
-		properties_set(wep->properties,(char*)OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,wep->frameworkUUID);
 
 		arrayList_add((*node_discovery)->ownNode->wiring_ep_descriptions_list,wep);
 
@@ -96,7 +126,6 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		wiringEndpointDescription_create((*node_discovery)->ownNode->nodeId,NULL,&wep2);
 		wep2->url=strdup("http://192.192.192.192");
 		wep2->port=50000;
-		properties_set(wep2->properties,(char*)OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,wep2->frameworkUUID);
 
 		arrayList_add((*node_discovery)->ownNode->wiring_ep_descriptions_list,wep2);
 

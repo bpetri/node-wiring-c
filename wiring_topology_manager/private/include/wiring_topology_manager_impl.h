@@ -17,21 +17,23 @@
  *under the License.
  */
 /*
- * wiring_topology_manager.h
+ * wiring_topology_manager_impl.h
  *
  *  \date       Sep 29, 2011
  *  \author    	<a href="mailto:celix-dev@incubator.apache.org">Apache Celix Project Team</a>
  *  \copyright	Apache License, Version 2.0
  */
 
-#ifndef WIRING_TOPOLOGY_MANAGER_H_
-#define WIRING_TOPOLOGY_MANAGER_H_
+#ifndef WIRING_TOPOLOGY_MANAGER_IMPL_H_
+#define WIRING_TOPOLOGY_MANAGER_IMPL_H_
 
+#include "wiring_topology_manager.h"
 #include "wiring_endpoint_listener.h"
 
 #include "bundle_context.h"
 
-typedef struct wiring_topology_manager* wiring_topology_manager_pt;
+
+
 
 celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_topology_manager_pt *manager);
 celix_status_t wiringTopologyManager_destroy(wiring_topology_manager_pt manager);
@@ -44,8 +46,9 @@ celix_status_t wiringTopologyManager_waRemoved(void *handle, service_reference_p
 celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 
-celix_status_t topologyManager_addExportedService(wiring_topology_manager_pt manager, service_reference_pt reference, char *serviceId);
-celix_status_t topologyManager_removeExportedService(wiring_topology_manager_pt manager, service_reference_pt reference, char *serviceId);
+celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
+celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
 
 
-#endif /* WIRING_TOPOLOGY_MANAGER_H_ */
+
+#endif /* WIRING_TOPOLOGY_MANAGER_IMPL_H_ */

@@ -29,6 +29,7 @@
 
 #include "properties.h"
 #include "array_list.h"
+#include "remote_constants.h"
 
 #define WIRING_ENDPOINT_DESCRIPTION_URL_KEY		"ep_url"
 #define WIRING_ENDPOINT_DESCRIPTION_PORT_KEY	"ep_port"
@@ -44,6 +45,8 @@ typedef struct wiring_endpoint_description *wiring_endpoint_description_pt;
 
 celix_status_t wiringEndpointDescription_create(char* uuid,properties_pt properties, wiring_endpoint_description_pt *wiringEndpointDescription);
 celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt description);
+unsigned int wiringEndpointDescription_hash(void* description);
+int wiringEndpointDescription_equals(void* description1,void* description2);
 
 
 #endif /* WIRING_ENDPOINT_DESCRIPTION_H_ */
