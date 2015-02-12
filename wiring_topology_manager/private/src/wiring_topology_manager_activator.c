@@ -67,9 +67,10 @@ celix_status_t bundleActivator_create(bundle_context_pt context, void **userData
 	}
 
 	activator->context = context;
-	activator->wiringEndpointListenerService = NULL;
 	activator->manager = NULL;
 	activator->inaeticsWiringAdminTracker = NULL;
+	activator->wiringEndpointListener = NULL;
+	activator->wiringEndpointListenerService = NULL;
 	activator->wiringTopologyManagerService = NULL;
 	activator->wiringTopologyManagerServiceRegistration = NULL;
 
@@ -95,7 +96,7 @@ static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *
 			wiringTopologyManager_waAdded, wiringTopologyManager_waModified, wiringTopologyManager_waRemoved, &customizer);
 
 	if (status == CELIX_SUCCESS) {
-		status = serviceTracker_create(activator->context, OSGI_WIRING_ADMIN, customizer, tracker);
+		status = serviceTracker_create(activator->context, (char*)OSGI_WIRING_ADMIN, customizer, tracker);
 	}
 
 	return status;
@@ -116,7 +117,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	char *uuid = NULL;
 	status = bundleContext_getProperty(activator->context, (char *)OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
 	if (!uuid) {
-		printf("WIRING_TOPOLOGY_MANAGER: no framework UUID defined?!\n");
+		printf("WTM: no framework UUID defined?!\n");
 		return CELIX_ILLEGAL_STATE;
 	}
 
@@ -128,7 +129,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	snprintf(scope, len, "(!(%s=%s))", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-	printf("WIRING_TOPOLOGY_MANAGER: Wiring Endpoint Listener scope is %s\n", scope);
+	printf("WTM: Wiring Endpoint Listener scope is %s\n", scope);
 
 	properties_pt props = properties_create();
 	properties_set(props, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
@@ -150,7 +151,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-	printf("WIRING_TOPOLOGY_MANAGER: Wiring Topology Manager scope is %s\n", scope);
+	printf("WTM: Wiring Topology Manager scope is %s\n", scope);
 
 	properties_pt wtm_props = properties_create();
 	properties_set(wtm_props, (char *) OSGI_WIRING_TOPOLOGY_MANAGER_SCOPE, scope);

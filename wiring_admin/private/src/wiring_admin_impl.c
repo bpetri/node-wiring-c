@@ -197,7 +197,7 @@ celix_status_t wiringAdmin_stop(wiring_admin_pt admin) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	if (admin->ctx != NULL) {
-		printf("WA: StoppingHTTP Wiring Endpoint running at %s:%u ...\n",admin->wEndpointDescription->url,admin->wEndpointDescription->port);
+		printf("WA: Stopping HTTP Wiring Endpoint running at %s:%u ...\n",admin->wEndpointDescription->url,admin->wEndpointDescription->port);
 		mg_stop(admin->ctx);
 		admin->ctx = NULL;
 	}

@@ -30,7 +30,9 @@
 #include "wiring_endpoint_listener.h"
 #include "celix_errno.h"
 
-#define OSGI_WIRING_ADMIN "wiring_admin"
+static const char * const OSGI_WIRING_ADMIN = "wiring_admin";
+
+static const char * const OSGI_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 
 #define DEFAULT_WA_ADDRESS 	"127.0.0.1"
 #define DEFAULT_WA_PORT		"6789"

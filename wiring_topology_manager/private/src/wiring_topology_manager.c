@@ -53,8 +53,15 @@ struct wiring_topology_manager {
 
 };
 
+typedef struct wiring_endpoint_registration{
+	wiring_endpoint_description_pt wiringEndpointDescription;
+	wiring_admin_service_pt wiringAdminService;
+} * wiring_endpoint_registration_pt;
+
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint);
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointRemoved(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint);
+
+static bool properties_match(properties_pt properties,properties_pt reference);
 
 
 celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_topology_manager_pt *manager) {
@@ -73,7 +80,7 @@ celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_to
 	status = celixThreadMutex_create(&(*manager)->installedWiringEndpointsLock, NULL);
 	status = celixThreadMutex_create(&(*manager)->importedWiringEndpointsLock, NULL);
 
-	(*manager)->installedWiringEndpoints = hashMap_create(NULL,wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals);
+	(*manager)->installedWiringEndpoints = hashMap_create(NULL,NULL, NULL, NULL);
 	(*manager)->importedWiringEndpoints = hashMap_create(wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals, NULL);
 
 	return status;
@@ -91,7 +98,7 @@ celix_status_t wiringTopologyManager_destroy(wiring_topology_manager_pt manager)
 
 	status = celixThreadMutex_lock(&manager->installedWiringEndpointsLock);
 
-	hashMap_destroy(manager->installedWiringEndpoints, false, false);
+	hashMap_destroy(manager->installedWiringEndpoints, false, true);
 
 	status = celixThreadMutex_unlock(&manager->installedWiringEndpointsLock);
 	status = celixThreadMutex_destroy(&manager->installedWiringEndpointsLock);
@@ -128,7 +135,9 @@ static celix_status_t wiringTopologyManager_getWAs(wiring_topology_manager_pt ma
 celix_status_t wiringTopologyManager_waAdding(void * handle, service_reference_pt reference, void **service) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	//Nop
+	wiring_topology_manager_pt manager = handle;
+
+	status=bundleContext_getService(manager->context, reference, service);
 
 	return status;
 }
@@ -173,13 +182,33 @@ celix_status_t wiringTopologyManager_waRemoved(void * handle, service_reference_
 
 	if(status == CELIX_SUCCESS && wEndpoint!=NULL){
 		status=wiringTopologyManager_notifyListenersWiringEndpointRemoved(manager,wEndpoint);
+
+		/* Check if the removed WA had an installed callback, if yes remove thre registration from the installedWiringEndpoints hashmap*/
+
+		celixThreadMutex_lock(&manager->installedWiringEndpointsLock);
+
+		hash_map_iterator_pt iter= hashMapIterator_create(manager->installedWiringEndpoints);
+
+		while(hashMapIterator_hasNext(iter)){
+			wiring_endpoint_registration_pt reg = hashMapIterator_nextValue(iter);
+			if( (reg !=NULL) && (wiringEndpointDescription_equals(wEndpoint,reg->wiringEndpointDescription)==0) ){
+				/*We had a registration for the WiringEndpoint associated to the removed WA */
+				hashMapIterator_remove(iter);
+				free(reg);
+			}
+		}
+
+		hashMapIterator_destroy(iter);
+
+		celixThreadMutex_unlock(&manager->installedWiringEndpointsLock);
+
 	}
+
 
 	celixThreadMutex_lock(&manager->waListLock);
 	arrayList_removeElement(manager->waList, wa);
 	celixThreadMutex_unlock(&manager->waListLock);
 
-	//TODO: Remove from the installedWEPD hashmap the endpoint, in case an RSA_Inaetics used it
 
 	printf("WTM: Removed WA\n");
 
@@ -236,129 +265,113 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 	return status;
 }
 
+/* Return true if all pairs in properties are contained in reference */
+static bool properties_match(properties_pt properties,properties_pt reference){
+
+	bool matching=true;
+
+	hash_map_iterator_pt iter = hashMapIterator_create(properties);
+	while(hashMapIterator_hasNext(iter) && matching){
+		hash_map_entry_pt prop_pair=hashMapIterator_nextEntry(iter);
+		char* prop_key=(char*)hashMapEntry_getKey(prop_pair);
+		char* prop_value=(char*)hashMapEntry_getValue(prop_pair);
+
+		char* ref_value=(char*)hashMap_get(reference,prop_key);
+		if( ref_value==NULL || (strcmp(ref_value,prop_value)!=0)){
+			matching=false; //We found a pair in properties not included in reference
+		}
+	}
+	hashMapIterator_destroy(iter);
+
+	return matching;
+
+}
+
 celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)){
 
-	celix_status_t status = CELIX_SUCCESS;
+	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
+	if(properties==NULL || rsa_inaetics_cb==NULL){
+		return CELIX_ILLEGAL_ARGUMENT;
+	}
 
 	celixThreadMutex_lock(&manager->installedWiringEndpointsLock);
 
-	wiring_endpoint_description_pt wepd = hashMap_get(manager->installedWiringEndpoints,rsa_inaetics_cb);
+	wiring_endpoint_registration_pt wepr = hashMap_get(manager->installedWiringEndpoints,rsa_inaetics_cb);
 
-	if( wepd == NULL ){
+	if( wepr == NULL ){
 		array_list_pt localWAs = NULL;
 		wiringTopologyManager_getWAs(manager, &localWAs);
 		int i=0;
 		for(;i<arrayList_size(localWAs);i++){
 			wiring_admin_service_pt wa = (wiring_admin_service_pt)arrayList_get(localWAs,i);
 			wiring_endpoint_description_pt wEndpoint = NULL;
-			status = wa->getWiringEndpoint(wa->admin,&wEndpoint);
-			if(status == CELIX_SUCCESS && wEndpoint!=NULL){
-				//TODO: Match the passed properties with the WEPD properties
-			}
+			wa->getWiringEndpoint(wa->admin,&wEndpoint);
+			if(wEndpoint!=NULL){
+				if(properties_match(properties,wEndpoint->properties) == true){ //We found our Wiring Endpoint, let's try to install the callback.
+					status=wa->exportWiringEndpoint(wa->admin,rsa_inaetics_cb);
+					if(status==CELIX_SUCCESS){
+						wiring_endpoint_registration_pt reg = calloc(1,sizeof(struct wiring_endpoint_registration));
+						reg->wiringEndpointDescription=wEndpoint;
+						reg->wiringAdminService = wa;
+						hashMap_put(manager->installedWiringEndpoints,rsa_inaetics_cb,reg);
+						printf("WTM: Installed callback to matching Wiring Endpoint %s:%u\n",wEndpoint->url,wEndpoint->port);
+						break;
+					}
+					else{
+						printf("WTM: Could not callback to matching Wiring Endpoint %s:%u. Going on...\n",wEndpoint->url,wEndpoint->port);
+					}
 
+				}
+			}
 		}
 
 		arrayList_destroy(localWAs);
 	}
 	else{
-		printf("WTM: The passed callback is already installed on WiringEndpoint %s:%u\n",wepd->url,wepd->port);
+		printf("WTM: The passed callback is already installed on WiringEndpoint %s:%u\n",wepr->wiringEndpointDescription->url,wepr->wiringEndpointDescription->port);
 		status=CELIX_ILLEGAL_STATE;
 	}
 
+	celixThreadMutex_unlock(&manager->installedWiringEndpointsLock);
+
+	if(status!=CELIX_SUCCESS){
+		printf("WTM: Could not install callback to any Wiring Endpoint\n");
+	}
+
+	return status;
+}
+
+celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)){
+
+	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
+
+	if(rsa_inaetics_cb==NULL){
+		return CELIX_ILLEGAL_ARGUMENT;
+	}
+
+	celixThreadMutex_lock(&manager->installedWiringEndpointsLock);
+
+	wiring_endpoint_registration_pt wepr = hashMap_get(manager->installedWiringEndpoints,rsa_inaetics_cb);
+
+	if( wepr != NULL ){
+		status=wepr->wiringAdminService->removeExportedWiringEndpoint(wepr->wiringAdminService->admin,rsa_inaetics_cb);
+		if(status==CELIX_SUCCESS){
+			hashMap_remove(manager->installedWiringEndpoints,rsa_inaetics_cb);
+			printf("WTM: Uninstalled callback from Wiring Endpoint %s%u\n",wepr->wiringEndpointDescription->url,wepr->wiringEndpointDescription->port);
+			free(wepr);
+		}
+	}
+	else{
+		printf("WTM: The passed callback was never installed on any WiringEndpoint \n");
+		status=CELIX_ILLEGAL_STATE;
+	}
 
 	celixThreadMutex_unlock(&manager->installedWiringEndpointsLock);
 
 
 	return status;
 }
-
-celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)){
-	celix_status_t status = CELIX_SUCCESS;
-	return status;
-}
-/*
-celix_status_t topologyManager_addExportedService(wiring_topology_manager_pt manager, service_reference_pt reference, char *serviceId) {
-	celix_status_t status = CELIX_SUCCESS;
-
-	logHelper_log(manager->loghelper, OSGI_LOGSERVICE_INFO, "TOPOLOGY_MANAGER: Add exported service (%s).", serviceId);
-
-	// Create a local copy of the current list of RSAs, to ensure we do not run into threading issues...
-	array_list_pt localRSAs = NULL;
-	wiringTopologyManager_getWAs(manager, &localRSAs);
-
-	status = celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
-
-	hash_map_pt exports = hashMap_create(NULL, NULL, NULL, NULL);
-	hashMap_put(manager->exportedWiringEndpoints, reference, exports);
-
-	int size = arrayList_size(localRSAs);
-	if (size == 0) {
-		logHelper_log(manager->loghelper, OSGI_LOGSERVICE_WARNING, "TOPOLOGY_MANAGER: No RSA available yet.");
-	}
-
-	for (int iter = 0; iter < size; iter++) {
-		wiring_admin_service_pt rsa = arrayList_get(localRSAs, iter);
-
-		array_list_pt endpoints = NULL;
-		status = rsa->exportService(rsa->admin, serviceId, NULL, &endpoints);
-
-		if (status == CELIX_SUCCESS) {
-			hashMap_put(exports, rsa, endpoints);
-			status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, rsa, endpoints);
-		}
-	}
-
-	arrayList_destroy(localRSAs);
-
-	status = celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
-
-	return status;
-}
-
-celix_status_t topologyManager_removeExportedService(wiring_topology_manager_pt manager, service_reference_pt reference, char *serviceId) {
-	celix_status_t status = CELIX_SUCCESS;
-
-	logHelper_log(manager->loghelper, OSGI_LOGSERVICE_INFO, "TOPOLOGY_MANAGER: Remove exported service (%s).", serviceId);
-
-	status = celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
-
-	hash_map_pt exports = hashMap_get(manager->exportedWiringEndpoints, reference);
-	if (exports) {
-		hash_map_iterator_pt iter = hashMapIterator_create(exports);
-		while (hashMapIterator_hasNext(iter)) {
-			hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
-
-			wiring_admin_service_pt rsa = hashMapEntry_getKey(entry);
-			array_list_pt exportRegistrations = hashMapEntry_getValue(entry);
-
-			for (int exportsIter = 0; exportsIter < arrayList_size(exportRegistrations); exportsIter++) {
-				export_registration_pt export = arrayList_get(exportRegistrations, exportsIter);
-				wiringTopologyManager_notifyListenersWiringEndpointRemoved(manager, rsa, export);
-				rsa->exportRegistration_close(export);
-			}
-			arrayList_destroy(exportRegistrations);
-			exportRegistrations = NULL;
-
-			hashMap_remove(exports, rsa);
-			hashMapIterator_destroy(iter);
-			iter = hashMapIterator_create(exports);
-
-		}
-		hashMapIterator_destroy(iter);
-	}
-
-	exports = hashMap_remove(manager->exportedWiringEndpoints, reference);
-
-	if (exports != NULL) {
-		hashMap_destroy(exports, false, false);
-    }
-
-	status = celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
-
-	return status;
-}
- */
 
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint) {
 	celix_status_t status = CELIX_SUCCESS;

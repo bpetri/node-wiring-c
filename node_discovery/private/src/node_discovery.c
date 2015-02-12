@@ -32,10 +32,7 @@ static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt 
 	char* fwuuid = NULL;
 	char* inZoneIdentifier = NULL;
 	char* inNodeIdentifier = NULL;
-	char* inWAAddress = NULL;
-	char* inWAPort = NULL;
 
-	celix_status_t ipFromItf = CELIX_ILLEGAL_ARGUMENT;
 
 	if (((bundleContext_getProperty(node_discovery->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
 		status = CELIX_ILLEGAL_STATE;
@@ -49,36 +46,11 @@ static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt 
 		inNodeIdentifier = fwuuid;
 	}
 
-	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_ADDRESS, &inWAAddress)) != CELIX_SUCCESS) || (!inWAAddress)) {
-
-		char* itf = NULL;
-		if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_ITF, &itf)) == CELIX_SUCCESS) && (itf!=NULL)) {
-			ipFromItf = wiring_getIpAddress(itf,&inWAAddress);
-			if(inWAAddress==NULL){
-				inWAAddress = (char*)DEFAULT_WA_ADDRESS;
-			}
-		}
-		else{
-			inWAAddress = (char*)DEFAULT_WA_ADDRESS;
-		}
-
-	}
-
-	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_WA_PORT, &inWAPort)) != CELIX_SUCCESS) || (!inWAPort)) {
-		inWAPort = (char*)DEFAULT_WA_PORT;
-	}
-
 	if (status == CELIX_SUCCESS) {
 
 		properties_pt props=properties_create();
 		properties_set(props, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inNodeIdentifier);
 		properties_set(props, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inZoneIdentifier);
-		properties_set(props, NODE_DESCRIPTION_WA_ADDRESS_IDENTIFIER_KEY, inWAAddress);
-		properties_set(props, NODE_DESCRIPTION_WA_PORT_IDENTIFIER_KEY, inWAPort);
-
-		if( (ipFromItf == CELIX_SUCCESS) && inWAAddress!=NULL){
-			free(inWAAddress);
-		}
 
 		nodeDescription_create(fwuuid,props,node_description);
 	}
@@ -107,7 +79,7 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		node_discovery_createOwnNodeDescription((*node_discovery), &(*node_discovery)->ownNode);
 
 
-		/* Create fake wiring endpoint descriptions for test purposes*/
+		/* Create fake wiring endpoint descriptions for test purposes
 		// TODO: Comment fake wiring endpoint description adds
 		wiring_endpoint_description_pt wep = NULL;
 
@@ -128,6 +100,8 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		wep2->port=50000;
 
 		arrayList_add((*node_discovery)->ownNode->wiring_ep_descriptions_list,wep2);
+
+		*/
 
 	}
 
@@ -379,7 +353,7 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 
 		if((!strcmp(wEndpoint->url,wep->url)) && wEndpoint->port==wep->port){
 			wep=arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list,i);
-			wiringEndpointDescription_destroy(wep);
+			//wiringEndpointDescription_destroy(wep);
 			break;
 		}
 
