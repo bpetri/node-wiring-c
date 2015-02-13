@@ -52,8 +52,8 @@ struct wiring_admin_service {
 	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, celix_status_t(*rsa_inetics)(char* data, char**response));
 	celix_status_t (*getWiringEndpoint)(wiring_admin_pt admin,wiring_endpoint_description_pt* wEndpoint);
 
-	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint);
-	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint);
+	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint,celix_status_t(**send)(wiring_admin_pt admin,void* handle, char *request, char **reply, int* replyStatus),void** handle);
+	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, void* handle);
 
 };
 

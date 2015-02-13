@@ -63,8 +63,8 @@ static const char *no_content_response_headers = "HTTP/1.1 204 OK\r\n";
 
 static int wiringAdmin_callback(struct mg_connection *conn);
 
-//static size_t remoteServiceAdmin_readCallback(void *ptr, size_t size, size_t nmemb, void *userp);
-//static size_t remoteServiceAdmin_write(void *contents, size_t size, size_t nmemb, void *userp);
+static size_t wiringAdmin_HTTPReqReadCallback(void *ptr, size_t size, size_t nmemb, void *userp);
+static size_t wiringAdmin_HTTPReqWrite(void *contents, size_t size, size_t nmemb, void *userp);
 
 
 celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *admin) {
@@ -97,6 +97,10 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		}
 
 		celixThreadMutex_create(&(*admin)->exportedWiringEndpointFunctionLock, NULL);
+
+		celixThreadMutex_create(&(*admin)->wiringProxiesLock, NULL);
+		(*admin)->wiringProxies = hashMap_create(NULL,wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals);
+
 
 		bundleContext_getProperty(context, NODE_DISCOVERY_NODE_WA_PORT, &port);
 		if (port == NULL) {
@@ -185,6 +189,11 @@ celix_status_t wiringAdmin_destroy(wiring_admin_pt* admin)
 	celixThreadMutex_unlock(&((*admin)->exportedWiringEndpointFunctionLock));
 	celixThreadMutex_destroy(&((*admin)->exportedWiringEndpointFunctionLock));
 
+	celixThreadMutex_lock(&((*admin)->wiringProxiesLock));
+	hashMap_destroy((*admin)->wiringProxies,true,false);
+	celixThreadMutex_unlock(&((*admin)->wiringProxiesLock));
+	celixThreadMutex_destroy(&((*admin)->wiringProxiesLock));
+
 	status= wiringEndpointDescription_destroy((*admin)->wEndpointDescription);
 
 	free(*admin);
@@ -270,7 +279,7 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, celix_sta
 
 	celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
 	admin->rsa_inetics_callback=rsa_inaetics_cb;
-	celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
+	celixThreadMutex_unlock(&admin->exportedWiringEndpointFunctionLock);
 
 	return status;
 }
@@ -295,105 +304,56 @@ celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, c
 	if(admin->rsa_inetics_callback==rsa_inaetics_cb){
 		celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
 		admin->rsa_inetics_callback=NULL;
-		celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
+		celixThreadMutex_unlock(&admin->exportedWiringEndpointFunctionLock);
 	}
 
 	return status;
 }
 
 
-celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription) {
+celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription,celix_status_t(**send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus),void** handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	/* +8 = :+max_len_for_port+\0 */
+	// WTM already checked for us that wEndpointDescription properties matches our properties
 
-	/*
-	char* wEndpointId = (char*)calloc(strlen(wEndpointDescription->url)+8,sizeof(char));
+	celixThreadMutex_lock(&admin->wiringProxiesLock);
 
-	printf("WA: Import Wiring Endpoint %s", wEndpointId);
+	void* h = malloc(1);
+	hashMap_put(admin->wiringProxies,h,wEndpointDescription);
+	*handle=h;
+	*send=wiringAdmin_send;
 
-	celixThreadMutex_lock(&admin->importedWiringEndpointLock);
-
-	wiring_import_registration_factory_pt registration_factory = (wiring_import_registration_factory_pt) hashMap_get(admin->importedWiringEndpoint, wEndpointId);
-
-	// check whether we already have a registration_factory registered in the hashmap
-	if (registration_factory == NULL)
-	{
-		status = wiring_importRegistrationFactory_install(wEndpointId, admin->context, &registration_factory);
-		if (status == CELIX_SUCCESS) {
-			hashMap_put(admin->importedWiringEndpoint, wEndpointId, registration_factory);
-		}
-	}
-
-	// factory available
-	if (status != CELIX_SUCCESS || (registration_factory->trackedFactory == NULL))
-	{
-		printf("WA: no proxyFactory available.");
-		if (status == CELIX_SUCCESS) {
-			status = CELIX_SERVICE_EXCEPTION;
-		}
-	}
-	else
-	{
-		// we create an importRegistration per imported service
-		//wiring_importRegistration_create(wEndpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send, admin->context, registration);
-		//registration_factory->trackedFactory->registerProxyService(registration_factory->trackedFactory->factory,  wEndpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send);
-		wiring_importRegistration_create(wEndpointDescription, admin, NULL, admin->context, registration);
-		registration_factory->trackedFactory->registerProxyService(registration_factory->trackedFactory->factory,  wEndpointDescription, admin, NULL);
-
-		arrayList_add(registration_factory->registrations, *registration);
-	}
-
-	celixThreadMutex_unlock(&admin->importedWiringEndpointLock);
-	 */
+	celixThreadMutex_unlock(&admin->wiringProxiesLock);
 
 	return status;
 }
 
 
-celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt description) {
+celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, void* handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	/*
-	endpoint_description_pt endpointDescription = (endpoint_description_pt) registration->endpointDescription;
-	import_registration_factory_pt registration_factory = NULL;
+	celixThreadMutex_lock(&admin->wiringProxiesLock);
 
-	celixThreadMutex_lock(&admin->importedServicesLock);
+	hashMap_remove(admin->wiringProxies,handle);
+	free(handle);
 
-	registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
-
-	// factory available
-	if ((registration_factory == NULL) || (registration_factory->trackedFactory == NULL))
-	{
-		logHelper_log(admin->loghelper, OSGI_LOGSERVICE_ERROR, "RSA: Error while retrieving registration factory for imported service %s", endpointDescription->service);
-	}
-	else
-	{
-		registration_factory->trackedFactory->unregisterProxyService(registration_factory->trackedFactory->factory, endpointDescription);
-		arrayList_removeElement(registration_factory->registrations, registration);
-		importRegistration_destroy(registration);
-
-		if (arrayList_isEmpty(registration_factory->registrations))
-		{
-			logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy.");
-
-			serviceTracker_close(registration_factory->proxyFactoryTracker);
-			importRegistrationFactory_close(registration_factory);
-
-			hashMap_remove(admin->importedServices, endpointDescription->service);
-
-			importRegistrationFactory_destroy(&registration_factory);
-		}
-	}
-
-	celixThreadMutex_unlock(&admin->importedServicesLock);
-	 */
+	celixThreadMutex_unlock(&admin->wiringProxiesLock);
 
 	return status;
 }
 
-/*
-celix_status_t remoteServiceAdmin_send(remote_service_admin_pt rsa, endpoint_description_pt endpointDescription, char *request, char **reply, int* replyStatus) {
+
+celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus) {
+
+	celix_status_t status = CELIX_SUCCESS;
+
+	celixThreadMutex_lock(&admin->wiringProxiesLock);
+	wiring_endpoint_description_pt wepd = (wiring_endpoint_description_pt)hashMap_get(admin->wiringProxies,handle);
+	celixThreadMutex_unlock(&admin->wiringProxiesLock);
+
+	if(wepd==NULL){
+		return CELIX_ILLEGAL_STATE;
+	}
 
 	struct post post;
 	post.readptr = request;
@@ -403,11 +363,12 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt rsa, endpoint_des
 	get.size = 0;
 	get.writeptr = malloc(1);
 
-	char *serviceUrl = properties_get(endpointDescription->properties, (char*) ENDPOINT_URL);
-	char url[256];
-	snprintf(url, 256, "%s", serviceUrl);
+	//TODO: adapt muliplexing via handle and fill the WEPD data
 
-	celix_status_t status = CELIX_SUCCESS;
+	char url[256];
+	memset(url,0,256);
+	snprintf(url, 256, "http://%s:%u", wepd->url,wepd->port);
+
 	CURL *curl;
 	CURLcode res;
 
@@ -417,26 +378,26 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt rsa, endpoint_des
 	} else {
 		curl_easy_setopt(curl, CURLOPT_URL, &url[0]);
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
-		curl_easy_setopt(curl, CURLOPT_READFUNCTION, remoteServiceAdmin_readCallback);
+		curl_easy_setopt(curl, CURLOPT_READFUNCTION, wiringAdmin_HTTPReqReadCallback);
 		curl_easy_setopt(curl, CURLOPT_READDATA, &post);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, remoteServiceAdmin_write);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wiringAdmin_HTTPReqWrite);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&get);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (curl_off_t)post.size);
 		res = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 
- *reply = get.writeptr;
- *replyStatus = res;
+		*reply = get.writeptr;
+		*replyStatus = res;
 	}
 
 	return status;
 }
 
-static size_t remoteServiceAdmin_readCallback(void *ptr, size_t size, size_t nmemb, void *userp) {
+static size_t wiringAdmin_HTTPReqReadCallback(void *ptr, size_t size, size_t nmemb, void *userp) {
 	struct post *post = userp;
 
 	if (post->size) {
- *(char *) ptr = post->readptr[0];
+		*(char *) ptr = post->readptr[0];
 		post->readptr++;
 		post->size--;
 		return 1;
@@ -445,7 +406,7 @@ static size_t remoteServiceAdmin_readCallback(void *ptr, size_t size, size_t nme
 	return 0;
 }
 
-static size_t remoteServiceAdmin_write(void *contents, size_t size, size_t nmemb, void *userp) {
+static size_t wiringAdmin_HTTPReqWrite(void *contents, size_t size, size_t nmemb, void *userp) {
 	size_t realsize = size * nmemb;
 	struct get *mem = (struct get *)userp;
 
@@ -462,5 +423,3 @@ static size_t remoteServiceAdmin_write(void *contents, size_t size, size_t nmemb
 
 	return realsize;
 }
-
- */

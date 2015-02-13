@@ -33,8 +33,6 @@
 #include "bundle_context.h"
 
 
-
-
 celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_topology_manager_pt *manager);
 celix_status_t wiringTopologyManager_destroy(wiring_topology_manager_pt manager);
 
@@ -48,6 +46,9 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 
 celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
 celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
+
+celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin, celix_status_t(**send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus),void** handle);
+celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, void* handle);
 
 
 

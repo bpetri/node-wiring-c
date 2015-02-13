@@ -143,9 +143,10 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	wiringTopologyManagerService->manager = activator->manager;
 	wiringTopologyManagerService->installCallbackToWiringEndpoint = wiringTopologyManager_installCallbackToWiringEndpoint;
 	wiringTopologyManagerService->uninstallCallbackFromWiringEndpoint = wiringTopologyManager_uninstallCallbackFromWiringEndpoint;
+	wiringTopologyManagerService->getWiringProxy = wiringTopologyManager_getWiringProxy;
+	wiringTopologyManagerService->removeWiringProxy = wiringTopologyManager_removeWiringProxy;
 
 	activator->wiringTopologyManagerService = wiringTopologyManagerService;
-
 
 	memset(scope,0,len+1);
 
