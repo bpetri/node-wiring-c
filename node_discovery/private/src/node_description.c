@@ -40,7 +40,7 @@ celix_status_t nodeDescription_create(char* uuid,properties_pt properties,node_d
 	return status;
 }
 
-celix_status_t nodeDescription_destroy(node_description_pt nodeDescription){
+celix_status_t nodeDescription_destroy(node_description_pt nodeDescription,bool destroyWEPDs){
 	celix_status_t status = CELIX_SUCCESS;
 
 	if(nodeDescription->nodeId!=NULL){
@@ -54,16 +54,17 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription){
 
 	if(nodeDescription->wiring_ep_descriptions_list!=NULL){
 		/* Our own WiringEndpointDescriptions are destroyed by the owning WiringAmdin... No need to destroy them twice...*/
-		/*
-		array_list_iterator_pt ep_it = arrayListIterator_create(nodeDescription->wiring_ep_descriptions_list);
 
-		while(arrayListIterator_hasNext(ep_it)){
-			wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
-			wiringEndpointDescription_destroy(wep_desc);
+		if(destroyWEPDs==true){
+			array_list_iterator_pt ep_it = arrayListIterator_create(nodeDescription->wiring_ep_descriptions_list);
+
+			while(arrayListIterator_hasNext(ep_it)){
+				wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
+				wiringEndpointDescription_destroy(wep_desc);
+			}
+
+			arrayListIterator_destroy(ep_it);
 		}
-
-		arrayListIterator_destroy(ep_it);
-		 */
 
 		arrayList_destroy(nodeDescription->wiring_ep_descriptions_list);
 	}

@@ -96,7 +96,7 @@ static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *
 			wiringTopologyManager_waAdded, wiringTopologyManager_waModified, wiringTopologyManager_waRemoved, &customizer);
 
 	if (status == CELIX_SUCCESS) {
-		status = serviceTracker_create(activator->context, (char*)OSGI_WIRING_ADMIN, customizer, tracker);
+		status = serviceTracker_create(activator->context, (char*)INAETICS_WIRING_ADMIN, customizer, tracker);
 	}
 
 	return status;
@@ -132,9 +132,9 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	printf("WTM: Wiring Endpoint Listener scope is %s\n", scope);
 
 	properties_pt props = properties_create();
-	properties_set(props, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+	properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
-	bundleContext_registerService(context, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
+	bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 
 
 	/* Wiring Topology Manager Service Creation and Registration */
@@ -155,9 +155,9 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	printf("WTM: Wiring Topology Manager scope is %s\n", scope);
 
 	properties_pt wtm_props = properties_create();
-	properties_set(wtm_props, (char *) OSGI_WIRING_TOPOLOGY_MANAGER_SCOPE, scope);
+	properties_set(wtm_props, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SCOPE, scope);
 
-	bundleContext_registerService(context, (char *) OSGI_WIRING_TOPOLOGY_MANAGER_SERVICE, wiringTopologyManagerService, wtm_props, &activator->wiringTopologyManagerServiceRegistration);
+	bundleContext_registerService(context, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, wiringTopologyManagerService, wtm_props, &activator->wiringTopologyManagerServiceRegistration);
 
 	// We can release the scope, as properties_set makes a copy of the key & value...
 	free(scope);

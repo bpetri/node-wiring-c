@@ -29,9 +29,9 @@
 
 #include "wiring_endpoint_description.h"
 
-static const char * const OSGI_WIRING_ENDPOINT_LISTENER_SERVICE = "wiring_endpoint_listener";
+static const char * const INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE = "wiring_endpoint_listener";
 
-static const char * const OSGI_WIRING_ENDPOINT_LISTENER_SCOPE = "wiring.endpoint.listener.scope";
+static const char * const INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE = "wiring.endpoint.listener.scope";
 
 struct wiring_endpoint_listener {
 	void *handle;

@@ -367,7 +367,7 @@ static bool properties_match(properties_pt properties,properties_pt reference){
 
 }
 
-celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)){
+celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, rsa_inaetics_receive_cb rsa_inaetics_cb){
 
 	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
@@ -422,7 +422,7 @@ celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topo
 	return status;
 }
 
-celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)){
+celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, rsa_inaetics_receive_cb rsa_inaetics_cb){
 
 	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
@@ -453,7 +453,7 @@ celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_
 	return status;
 }
 
-celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin, celix_status_t(**sendFunc)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus), void** handle){
+celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle){
 	celix_status_t status = CELIX_ILLEGAL_STATE;
 
 	if(properties==NULL){
@@ -512,7 +512,7 @@ celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt m
 }
 
 
-celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, void* handle){
+celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, wiring_handle handle){
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&manager->handleToWiringAdminLock);
@@ -531,7 +531,7 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(w
 	celix_status_t status = CELIX_SUCCESS;
 
 	array_list_pt wiringEndpointListeners = NULL;
-	status = bundleContext_getServiceReferences(manager->context, OSGI_WIRING_ENDPOINT_LISTENER_SERVICE, NULL, &wiringEndpointListeners);
+	status = bundleContext_getServiceReferences(manager->context, INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, NULL, &wiringEndpointListeners);
 	if (status != CELIX_SUCCESS || !wiringEndpointListeners) {
 		return CELIX_BUNDLE_EXCEPTION;
 	}
@@ -542,7 +542,7 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(w
 		service_reference_pt eplRef = arrayList_get(wiringEndpointListeners, eplIt);
 
 		char *scope = NULL;
-		serviceReference_getProperty(eplRef, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
+		serviceReference_getProperty(eplRef, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
 
 		wiring_endpoint_listener_pt wepl = NULL;
 		status = bundleContext_getService(manager->context, eplRef, (void **) &wepl);
@@ -573,7 +573,7 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointRemoved
 	celix_status_t status = CELIX_SUCCESS;
 
 	array_list_pt wiringEndpointListeners = NULL;
-	status = bundleContext_getServiceReferences(manager->context, OSGI_WIRING_ENDPOINT_LISTENER_SERVICE, NULL, &wiringEndpointListeners);
+	status = bundleContext_getServiceReferences(manager->context, INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, NULL, &wiringEndpointListeners);
 	if (status != CELIX_SUCCESS || !wiringEndpointListeners) {
 		return CELIX_BUNDLE_EXCEPTION;
 	}

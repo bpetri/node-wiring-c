@@ -270,7 +270,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 }
 
 
-celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)) {
+celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin,rsa_inaetics_receive_cb rsa_inaetics_cb) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	if(rsa_inaetics_cb==NULL){
@@ -294,7 +294,7 @@ celix_status_t wiringAdmin_getWiringEndpoint(wiring_admin_pt admin,wiring_endpoi
 
 }
 
-celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, celix_status_t(*rsa_inaetics_cb)(char* data, char**response)) {
+celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	if(rsa_inaetics_cb==NULL){
@@ -311,7 +311,7 @@ celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, c
 }
 
 
-celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription,celix_status_t(**send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus),void** handle) {
+celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription,rsa_inaetics_send* send,wiring_handle* handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	// WTM already checked for us that wEndpointDescription properties matches our properties
@@ -329,7 +329,7 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
 }
 
 
-celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, void* handle) {
+celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, wiring_handle handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&admin->wiringProxiesLock);
@@ -362,8 +362,6 @@ celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *reque
 	struct get get;
 	get.size = 0;
 	get.writeptr = malloc(1);
-
-	//TODO: adapt muliplexing via handle and fill the WEPD data
 
 	char url[256];
 	memset(url,0,256);

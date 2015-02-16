@@ -63,7 +63,7 @@ static celix_status_t createWiringEndpointListenerTracker(struct activator *acti
 			&customizer);
 
 	if (status == CELIX_SUCCESS) {
-		status = serviceTracker_create(activator->context, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
+		status = serviceTracker_create(activator->context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
 	}
 
 	return status;
@@ -130,11 +130,11 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	properties_pt props = properties_create();
 	properties_set(props, "NODE_DISCOVERY", "true");
-	properties_set(props, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+	properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
 	free(scope);
 
-	status=bundleContext_registerService(context, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
+	status=bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 
 	if(status == CELIX_SUCCESS){
 		status=serviceTracker_open(activator->wiringEndpointListenerTracker);

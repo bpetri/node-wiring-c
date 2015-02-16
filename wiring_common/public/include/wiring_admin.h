@@ -30,9 +30,9 @@
 #include "wiring_endpoint_listener.h"
 #include "celix_errno.h"
 
-static const char * const OSGI_WIRING_ADMIN = "wiring_admin";
+static const char * const INAETICS_WIRING_ADMIN = "wiring_admin";
 
-static const char * const OSGI_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
+static const char * const INAETICS_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 
 #define DEFAULT_WA_ADDRESS 	"127.0.0.1"
 #define DEFAULT_WA_PORT		"6789"
@@ -45,15 +45,20 @@ static const char * const OSGI_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 
 typedef struct wiring_admin *wiring_admin_pt;
 
+typedef celix_status_t (*rsa_inaetics_receive_cb)(char* data, char**response);
+typedef celix_status_t (*rsa_inaetics_send)(wiring_admin_pt admin,void* handle, char *request, char **reply, int* replyStatus);
+
+typedef void* wiring_handle;
+
 struct wiring_admin_service {
 	wiring_admin_pt admin;
 
-	celix_status_t (*exportWiringEndpoint)(wiring_admin_pt admin, celix_status_t(*rsa_inetics)(char* data, char**response));
-	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, celix_status_t(*rsa_inetics)(char* data, char**response));
+	celix_status_t (*exportWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
+	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
 	celix_status_t (*getWiringEndpoint)(wiring_admin_pt admin,wiring_endpoint_description_pt* wEndpoint);
 
-	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint,celix_status_t(**send)(wiring_admin_pt admin,void* handle, char *request, char **reply, int* replyStatus),void** handle);
-	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, void* handle);
+	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint,rsa_inaetics_send* sendFunc,wiring_handle* handle);
+	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, wiring_handle handle);
 
 };
 

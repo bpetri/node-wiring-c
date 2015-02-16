@@ -94,12 +94,12 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			printf("WA: Wiring Endpoint Listener scope is %s\n", scope);
 
 			properties_pt props = properties_create();
-			properties_set(props, (char *) OSGI_WIRING_ADMIN_SCOPE, scope);
+			properties_set(props, (char *) INAETICS_WIRING_ADMIN_SCOPE, scope);
 
 			free(scope);
 
 
-			status = bundleContext_registerService(context, (char*)OSGI_WIRING_ADMIN, activator->wiringAdminService, props, &activator->registration);
+			status = bundleContext_registerService(context, (char*)INAETICS_WIRING_ADMIN, activator->wiringAdminService, props, &activator->registration);
 		}
 	}
 

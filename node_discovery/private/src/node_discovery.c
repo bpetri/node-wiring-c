@@ -119,7 +119,7 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 
 	while(hashMapIterator_hasNext(iter)){
 		node_description_pt node_desc= (node_description_pt)hashMapIterator_nextValue(iter);
-		nodeDescription_destroy(node_desc);
+		nodeDescription_destroy(node_desc,true);
 	}
 
 	hashMapIterator_destroy(iter);
@@ -143,7 +143,7 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 
 
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
-	nodeDescription_destroy(node_discovery->ownNode);
+	nodeDescription_destroy(node_discovery->ownNode,false);
 	celixThreadMutex_unlock(&node_discovery->ownNodeMutex);
 	celixThreadMutex_destroy(&node_discovery->ownNodeMutex);
 
@@ -243,7 +243,7 @@ celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char*
 
 		arrayListIterator_destroy(wep_it);
 
-		nodeDescription_destroy(node_desc);
+		nodeDescription_destroy(node_desc,true);
 	}
 
 	printf("\nNODE_DISCOVERY: Node %s removed\n", key);
@@ -267,7 +267,7 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
 			wiring_endpoint_listener_pt listener = NULL;
 
 			char *scope = NULL;
-			serviceReference_getProperty(reference, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
+			serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
 
 			filter_pt filter = filter_create(scope);
 			bool matchResult = false;
@@ -384,7 +384,7 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 	char *nodeDiscoveryListener = NULL;
 	serviceReference_getProperty(reference, "NODE_DISCOVERY", &nodeDiscoveryListener);
 	char *scope = NULL;
-	serviceReference_getProperty(reference, (char *) OSGI_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
+	serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
 
 	filter_pt filter = filter_create(scope);
 

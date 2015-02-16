@@ -44,11 +44,11 @@ celix_status_t wiringTopologyManager_waRemoved(void *handle, service_reference_p
 celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 
-celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
-celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, celix_status_t(*rsa_inaetics_cb)(char* data, char**response));
+celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, rsa_inaetics_receive_cb rsa_inaetics_cb);
+celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, rsa_inaetics_receive_cb rsa_inaetics_cb);
 
-celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin, celix_status_t(**send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus),void** handle);
-celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, void* handle);
+celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin,rsa_inaetics_send* sendFunc,wiring_handle* handle);
+celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, wiring_handle handle);
 
 
 
