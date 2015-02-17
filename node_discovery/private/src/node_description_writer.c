@@ -44,6 +44,8 @@ celix_status_t node_description_writer_nodeDescToString(node_description_pt inNo
 
 	hashMapIterator_destroy(node_props_it);
 
+	celixThreadMutex_lock(&inNodeDesc->wiring_ep_desc_list_lock);
+
 	if(arrayList_size(inNodeDesc->wiring_ep_descriptions_list)>0){
 		// Node Description properties done, let's go through wiring endpoint list
 		ret[strlen(ret)-1]='#';
@@ -81,6 +83,8 @@ celix_status_t node_description_writer_nodeDescToString(node_description_pt inNo
 
 		arrayListIterator_destroy(ep_it);
 	}
+
+	celixThreadMutex_unlock(&inNodeDesc->wiring_ep_desc_list_lock);
 
 	ret[strlen(ret)-1]='\0';
 
@@ -172,7 +176,9 @@ celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_descrip
 				ep_token=strtok_r(NULL,ep_props_delim,&saveptr2);
 			}
 
+			celixThreadMutex_lock(&((*inNodeDesc)->wiring_ep_desc_list_lock));
 			arrayList_add((*inNodeDesc)->wiring_ep_descriptions_list,wEndpointDescription);
+			celixThreadMutex_unlock(&((*inNodeDesc)->wiring_ep_desc_list_lock));
 
 			//printf("Endpoint description: <URL=%s,Port=%u>\n",e.url,e.port);
 

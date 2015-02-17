@@ -102,12 +102,27 @@ int wiringEndpointDescription_equals(void* description1,void* description2){
 	}
 
 	if( (!strcmp(wepd1->frameworkUUID,wepd2->frameworkUUID)) &&
-		(!strcmp(wepd1->url,wepd2->url)) &&
-		(wepd1->port==wepd2->port)){
+			(!strcmp(wepd1->url,wepd2->url)) &&
+			(wepd1->port==wepd2->port)){
 
 		return 0;
 	}
 
 	return 1;
 
+}
+
+void wiringEndpointDescription_dump(wiring_endpoint_description_pt wep_desc){
+	printf("\t\t WEPD %s %s:%u\n",wep_desc->frameworkUUID,wep_desc->url,wep_desc->port);
+
+	hash_map_iterator_pt wep_desc_props_it = hashMapIterator_create(wep_desc->properties);
+
+	while(hashMapIterator_hasNext(wep_desc_props_it)){
+		hash_map_entry_pt wep_desc_props_entry = hashMapIterator_nextEntry(wep_desc_props_it);
+		char* key=(char*)hashMapEntry_getKey(wep_desc_props_entry);
+		char* value=(char*)hashMapEntry_getValue(wep_desc_props_entry);
+		printf("\t\t<%s=%s>\n",key,value);
+	}
+
+	hashMapIterator_destroy(wep_desc_props_it);
 }

@@ -91,7 +91,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 			snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-			printf("WA: Wiring Endpoint Listener scope is %s\n", scope);
+			//printf("WA: Wiring Endpoint Listener scope is %s\n", scope);
 
 			properties_pt props = properties_create();
 			properties_set(props, (char *) INAETICS_WIRING_ADMIN_SCOPE, scope);

@@ -36,6 +36,7 @@ celix_status_t nodeDescription_create(char* uuid,properties_pt properties,node_d
 	}
 
 	arrayList_create(&((*nodeDescription)->wiring_ep_descriptions_list));
+	celixThreadMutex_create(&((*nodeDescription)->wiring_ep_desc_list_lock),NULL);
 
 	return status;
 }
@@ -51,6 +52,7 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription,bool 
 		properties_destroy(nodeDescription->properties);
 	}
 
+	celixThreadMutex_lock(&nodeDescription->wiring_ep_desc_list_lock);
 
 	if(nodeDescription->wiring_ep_descriptions_list!=NULL){
 		/* Our own WiringEndpointDescriptions are destroyed by the owning WiringAmdin... No need to destroy them twice...*/
@@ -69,6 +71,9 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription,bool 
 		arrayList_destroy(nodeDescription->wiring_ep_descriptions_list);
 	}
 
+	celixThreadMutex_unlock(&nodeDescription->wiring_ep_desc_list_lock);
+
+	celixThreadMutex_destroy(&nodeDescription->wiring_ep_desc_list_lock);
 
 	free(nodeDescription);
 
@@ -97,18 +102,7 @@ void dump_node_description(node_description_pt node_desc){
 
 	while(arrayListIterator_hasNext(ep_it)){
 		wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
-		printf("\t\t WEPD %s %s:%u\n",wep_desc->frameworkUUID,wep_desc->url,wep_desc->port);
-
-		hash_map_iterator_pt wep_desc_props_it = hashMapIterator_create(wep_desc->properties);
-
-		while(hashMapIterator_hasNext(wep_desc_props_it)){
-			hash_map_entry_pt wep_desc_props_entry = hashMapIterator_nextEntry(wep_desc_props_it);
-			char* key=(char*)hashMapEntry_getKey(wep_desc_props_entry);
-			char* value=(char*)hashMapEntry_getValue(wep_desc_props_entry);
-			printf("\t\t<%s=%s>\n",key,value);
-		}
-
-		hashMapIterator_destroy(wep_desc_props_it);
+		wiringEndpointDescription_dump(wep_desc);
 
 	}
 

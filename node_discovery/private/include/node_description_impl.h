@@ -5,9 +5,11 @@
 #include "properties.h"
 #include "array_list.h"
 #include "node_description.h"
+#include "celix_threads.h"
 
 struct node_description {
     char *nodeId;
+    celix_thread_mutex_t wiring_ep_desc_list_lock;
     array_list_pt wiring_ep_descriptions_list;
     properties_pt properties;
 };

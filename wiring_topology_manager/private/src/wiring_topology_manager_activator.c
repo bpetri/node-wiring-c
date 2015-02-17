@@ -109,6 +109,11 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	/* Wiring Endpoint Listener Service Creation and Registration */
 	wiring_endpoint_listener_pt wEndpointListener = malloc(sizeof(*wEndpointListener));
+	if(wEndpointListener==NULL){
+		serviceTracker_destroy(activator->inaeticsWiringAdminTracker);
+		bundleActivator_destroy(userData,context);
+		return CELIX_ENOMEM;
+	}
 	wEndpointListener->handle = activator->manager;
 	wEndpointListener->wiringEndpointAdded = wiringTopologyManager_addImportedWiringEndpoint;
 	wEndpointListener->wiringEndpointRemoved = wiringTopologyManager_removeImportedWiringEndpoint;
@@ -129,7 +134,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	snprintf(scope, len, "(!(%s=%s))", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-	printf("WTM: Wiring Endpoint Listener scope is %s\n", scope);
+	//printf("WTM: Wiring Endpoint Listener scope is %s\n", scope);
 
 	properties_pt props = properties_create();
 	properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
@@ -152,7 +157,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-	printf("WTM: Wiring Topology Manager scope is %s\n", scope);
+	//printf("WTM: Wiring Topology Manager scope is %s\n", scope);
 
 	properties_pt wtm_props = properties_create();
 	properties_set(wtm_props, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SCOPE, scope);

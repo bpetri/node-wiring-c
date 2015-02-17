@@ -77,12 +77,12 @@ celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_to
 
 	(*manager)->context = context;
 	(*manager)->waList = NULL;
-	arrayList_create(&(*manager)->waList);
+	arrayList_create(&((*manager)->waList));
 
-	celixThreadMutex_create(&(*manager)->waListLock, NULL);
-	celixThreadMutex_create(&(*manager)->installedWiringEndpointsLock, NULL);
-	celixThreadMutex_create(&(*manager)->importedWiringEndpointsLock, NULL);
-	celixThreadMutex_create(&(*manager)->handleToWiringAdminLock, NULL);
+	celixThreadMutex_create(&((*manager)->waListLock), NULL);
+	celixThreadMutex_create(&((*manager)->installedWiringEndpointsLock), NULL);
+	celixThreadMutex_create(&((*manager)->importedWiringEndpointsLock), NULL);
+	celixThreadMutex_create(&((*manager)->handleToWiringAdminLock), NULL);
 
 
 	(*manager)->installedWiringEndpoints = hashMap_create(NULL,NULL, NULL, NULL); // key=rsa_inaetics_callback_fp, value=wiring_endpoint_registration_pt
@@ -178,10 +178,10 @@ celix_status_t wiringTopologyManager_waAdded(void * handle, service_reference_pt
 		while(hashMapIterator_hasNext(iter)){
 			hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
 			wiring_endpoint_description_pt i_wepd = hashMapEntry_getKey(entry);
-			wiring_admin_service_pt wa = hashMapEntry_getValue(entry);
+			wiring_admin_service_pt i_wa = hashMapEntry_getValue(entry);
 
 			/* If we find a proper imported WiringEndpoint but still no WiringProxy is associated */
-			if(properties_match(wEndpoint->properties,i_wepd->properties) && (wa==NULL)){
+			if(properties_match(wEndpoint->properties,i_wepd->properties) && (i_wa==NULL)){
 				hashMap_put(manager->importedWiringEndpoints,i_wepd,wa);
 				printf("WTM: Added WiringAdmin is able to communicate with imported WiringEndpoint %s:%u\n",i_wepd->url,i_wepd->port);
 			}
@@ -247,6 +247,7 @@ celix_status_t wiringTopologyManager_waRemoved(void * handle, service_reference_
 
 			/* If we find a proper imported WiringEndpoint associated no WiringProxy is associated */
 			if(wa==i_wa){
+				printf("WTM: The removed WA was associated as a WiringProxy for imported WiringEndpoint %s:%u: deassociating them...\n",i_wepd->url,i_wepd->port);
 				hashMap_put(manager->importedWiringEndpoints,i_wepd,NULL);
 			}
 
@@ -310,10 +311,21 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 		wiring_endpoint_description_pt wa_wepd = NULL;
 		wa->getWiringEndpoint(wa->admin,&wa_wepd);
 
+		/*
+		if(wa_wepd!=NULL){
+			wiringEndpointDescription_dump(wa_wepd);
+		}
+
+		if(wEndpoint!=NULL){
+			wiringEndpointDescription_dump(wEndpoint);
+		}
+		*/
+
 		/* Check if we already have a WiringAdmin able to communicate with the imported wiring endpoint */
 
 		if((wa_wepd!=NULL) && (properties_match(wa_wepd->properties,wEndpoint->properties)==true)){
 			matching_wa = wa;
+			printf("WTM: Imported WiringEndpoint matches with local WA %s:%u. Associating them...\n",wa_wepd->url,wa_wepd->port);
 			break; //Found, we have a proper WA
 		}
 
@@ -332,11 +344,13 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 	celix_status_t status = CELIX_SUCCESS;
 	wiring_topology_manager_pt manager = handle;
 
-	printf("WTM: Removing imported wiring endpoint (%s; %s:%u).\n", wEndpoint->frameworkUUID, wEndpoint->url,wEndpoint->port);
+
 
 	status = celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 
-	hashMap_remove(manager->importedWiringEndpoints,wEndpoint);
+	if(hashMap_remove(manager->importedWiringEndpoints,wEndpoint)!=NULL){
+		printf("WTM: Removing imported wiring endpoint (%s; %s:%u).\n", wEndpoint->frameworkUUID, wEndpoint->url,wEndpoint->port);
+	}
 
 	status = celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
 
@@ -355,6 +369,11 @@ static bool properties_match(properties_pt properties,properties_pt reference){
 		hash_map_entry_pt prop_pair=hashMapIterator_nextEntry(iter);
 		char* prop_key=(char*)hashMapEntry_getKey(prop_pair);
 		char* prop_value=(char*)hashMapEntry_getValue(prop_pair);
+
+		/*OSGI_RSA_ENDPOINT_FRAMEWORK_UUID (endpoint.framework.uuid) is a special property that shouldn't be taken in account*/
+		if(strcmp(prop_key,OSGI_RSA_ENDPOINT_FRAMEWORK_UUID)==0){
+			continue;
+		}
 
 		char* ref_value=(char*)hashMap_get(reference,prop_key);
 		if( ref_value==NULL || (strcmp(ref_value,prop_value)!=0)){
