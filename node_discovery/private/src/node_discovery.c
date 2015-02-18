@@ -315,9 +315,9 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 		wiring_endpoint_description_pt wep=arrayListIterator_next(wep_it);
 
 		// Trying to add twice the same Wiring Endpoint Description should never happen!!
-		if((!strcmp(wEndpoint->url,wep->url)) && wEndpoint->port==wep->port){
-			printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_url=%s,wep_port=%u)\n",wEndpoint->url,wEndpoint->port);
-			status=CELIX_ILLEGAL_STATE;
+		if (!strcmp(wEndpoint->url, wep->url)) {
+			printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_url=%s)\n", wEndpoint->url);
+			status = CELIX_ILLEGAL_STATE;
 		}
 	}
 
@@ -356,8 +356,8 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	for(;i<arrayList_size(node_discovery->ownNode->wiring_ep_descriptions_list);i++){
 		wiring_endpoint_description_pt wep=arrayList_get(node_discovery->ownNode->wiring_ep_descriptions_list,i);
 
-		if((!strcmp(wEndpoint->url,wep->url)) && wEndpoint->port==wep->port){
-			wep=arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list,i);
+		if (!strcmp(wEndpoint->url, wep->url)) {
+			wep = arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list, i);
 			//wiringEndpointDescription_destroy(wep);
 			break;
 		}

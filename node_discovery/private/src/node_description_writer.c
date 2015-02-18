@@ -55,9 +55,8 @@ celix_status_t node_description_writer_nodeDescToString(node_description_pt inNo
 
 		while(arrayListIterator_hasNext(ep_it)){
 			wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
-			int port_len= ( wep_desc->port==0 ) ? 1 : ((int)log10(fabs(wep_desc->port)))+1;
-			int ep_base_len=strlen(WIRING_ENDPOINT_DESCRIPTION_URL_KEY)+strlen(wep_desc->url)+strlen(WIRING_ENDPOINT_DESCRIPTION_PORT_KEY)+port_len+4;
-			snprintf(node_desc_str,ep_base_len,"%s=%s,%s=%u",WIRING_ENDPOINT_DESCRIPTION_URL_KEY,wep_desc->url,WIRING_ENDPOINT_DESCRIPTION_PORT_KEY,wep_desc->port);
+			int ep_base_len=strlen(WIRING_ENDPOINT_DESCRIPTION_URL_KEY)+strlen(wep_desc->url)+2;
+			snprintf(node_desc_str,ep_base_len,"%s=%s",WIRING_ENDPOINT_DESCRIPTION_URL_KEY,wep_desc->url);
 			node_desc_str+=ep_base_len-1;
 
 			hash_map_iterator_pt wep_desc_props_it = hashMapIterator_create(wep_desc->properties);
@@ -162,9 +161,6 @@ celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_descrip
 				if(!strncmp(key,WIRING_ENDPOINT_DESCRIPTION_URL_KEY,strlen(WIRING_ENDPOINT_DESCRIPTION_URL_KEY))){
 					wEndpointDescription->url=strdup(value);
 				}
-				else if(!strncmp(key,WIRING_ENDPOINT_DESCRIPTION_PORT_KEY,strlen(WIRING_ENDPOINT_DESCRIPTION_PORT_KEY))){
-					wEndpointDescription->port=(unsigned short)strtoul(value,NULL,10);
-				}
 				else if(!strncmp(key,OSGI_RSA_ENDPOINT_FRAMEWORK_UUID,strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID))){
 					//Do nothing
 				}
@@ -179,8 +175,6 @@ celix_status_t node_description_writer_stringToNodeDesc(char* inStr,node_descrip
 			celixThreadMutex_lock(&((*inNodeDesc)->wiring_ep_desc_list_lock));
 			arrayList_add((*inNodeDesc)->wiring_ep_descriptions_list,wEndpointDescription);
 			celixThreadMutex_unlock(&((*inNodeDesc)->wiring_ep_desc_list_lock));
-
-			//printf("Endpoint description: <URL=%s,Port=%u>\n",e.url,e.port);
 
 			token=strtok_r(NULL,ep_delim,&saveptr1);
 		}

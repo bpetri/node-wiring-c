@@ -32,12 +32,10 @@
 #include "remote_constants.h"
 
 #define WIRING_ENDPOINT_DESCRIPTION_URL_KEY		"ep_url"
-#define WIRING_ENDPOINT_DESCRIPTION_PORT_KEY	"ep_port"
 
 struct wiring_endpoint_description {
     char *frameworkUUID;
     char *url;
-    unsigned short port;
     properties_pt properties;
 };
 
