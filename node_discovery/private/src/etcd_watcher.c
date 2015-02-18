@@ -188,7 +188,9 @@ static void* etcdWatcher_run(void* data) {
 	etcdWatcher_addAlreadyExistingNodes(node_discovery, &highestModified);
 	etcdWatcher_getRootPath(context, rootPath);
 
-	while (watcher->running) {
+	while ((celixThreadMutex_lock(&watcher->watcherLock)==CELIX_SUCCESS) && watcher->running) {
+
+		celixThreadMutex_unlock(&watcher->watcherLock);
 
 		char rkey[MAX_KEY_LENGTH];
 		char value[MAX_VALUE_LENGTH];
@@ -217,6 +219,11 @@ static void* etcdWatcher_run(void* data) {
 			etcdWatcher_addOwnNode(watcher);
 			timeBeforeWatch = time(NULL);
 		}
+
+	}
+
+	if(watcher->running==false){
+		celixThreadMutex_unlock(&watcher->watcherLock);
 	}
 
 	return NULL;
@@ -293,17 +300,21 @@ celix_status_t etcdWatcher_destroy(etcd_watcher_pt watcher) {
 	celix_status_t status = CELIX_SUCCESS;
 	char localNodePath[MAX_LOCALNODE_LENGTH];
 
+	celixThreadMutex_lock(&(watcher->watcherLock));
 	watcher->running = false;
+	celixThreadMutex_unlock(&(watcher->watcherLock));
 
 	celixThread_join(watcher->watcherThread, NULL);
 
-	// register own framework
+	// Unregister own framework
 	status = etcdWatcher_getLocalNodePath(watcher->node_discovery->context, &localNodePath[0]);
 
 	if (status != CELIX_SUCCESS || etcd_del(localNodePath) == false)
 	{
 		fw_log(logger, OSGI_FRAMEWORK_LOG_WARNING, "Cannot remove local discovery registration.");
 	}
+
+	celixThreadMutex_destroy(&(watcher->watcherLock));
 
 	free(watcher);
 
