@@ -183,7 +183,7 @@ celix_status_t wiringTopologyManager_waAdded(void * handle, service_reference_pt
 			/* If we find a proper imported WiringEndpoint but still no WiringProxy is associated */
 			if(properties_match(wEndpoint->properties,i_wepd->properties) && (i_wa==NULL)){
 				hashMap_put(manager->importedWiringEndpoints,i_wepd,wa);
-				printf("WTM: Added WiringAdmin is able to communicate with imported WiringEndpoint %s:%u\n",i_wepd->url,i_wepd->port);
+				printf("WTM: Added WiringAdmin is able to communicate with imported WiringEndpoint %s\n",i_wepd->url);
 			}
 		}
 		hashMapIterator_destroy(iter);
@@ -247,7 +247,7 @@ celix_status_t wiringTopologyManager_waRemoved(void * handle, service_reference_
 
 			/* If we find a proper imported WiringEndpoint associated no WiringProxy is associated */
 			if(wa==i_wa){
-				printf("WTM: The removed WA was associated as a WiringProxy for imported WiringEndpoint %s:%u: deassociating them...\n",i_wepd->url,i_wepd->port);
+				printf("WTM: The removed WA was associated as a WiringProxy for imported WiringEndpoint %s: deassociating them...\n",i_wepd->url);
 				hashMap_put(manager->importedWiringEndpoints,i_wepd,NULL);
 			}
 
@@ -293,7 +293,7 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 	celix_status_t status = CELIX_SUCCESS;
 	wiring_topology_manager_pt manager = handle;
 
-	printf("WTM: Add imported wiring endpoint (%s; %s:%u).\n", wEndpoint->frameworkUUID, wEndpoint->url,wEndpoint->port);
+	printf("WTM: Add imported wiring endpoint (%s; %s).\n", wEndpoint->frameworkUUID, wEndpoint->url);
 
 	// Create a local copy of the current list of WAs, to ensure we do not run into threading issues...
 	array_list_pt localWAs = NULL;
@@ -325,7 +325,7 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 
 		if((wa_wepd!=NULL) && (properties_match(wa_wepd->properties,wEndpoint->properties)==true)){
 			matching_wa = wa;
-			printf("WTM: Imported WiringEndpoint matches with local WA %s:%u. Associating them...\n",wa_wepd->url,wa_wepd->port);
+			printf("WTM: Imported WiringEndpoint matches with local WA %s. Associating them...\n",wa_wepd->url);
 			break; //Found, we have a proper WA
 		}
 
@@ -349,7 +349,7 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 	status = celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 
 	if(hashMap_remove(manager->importedWiringEndpoints,wEndpoint)!=NULL){
-		printf("WTM: Removing imported wiring endpoint (%s; %s:%u).\n", wEndpoint->frameworkUUID, wEndpoint->url,wEndpoint->port);
+		printf("WTM: Removing imported wiring endpoint (%s; %s).\n", wEndpoint->frameworkUUID, wEndpoint->url);
 	}
 
 	status = celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
@@ -414,11 +414,11 @@ celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topo
 						reg->wiringEndpointDescription=wEndpoint;
 						reg->wiringAdminService = wa;
 						hashMap_put(manager->installedWiringEndpoints,rsa_inaetics_cb,reg);
-						printf("WTM: Installed callback to matching Wiring Endpoint %s:%u\n",wEndpoint->url,wEndpoint->port);
+						printf("WTM: Installed callback to matching Wiring Endpoint %s\n",wEndpoint->url);
 						break;
 					}
 					else{
-						printf("WTM: Could not callback to matching Wiring Endpoint %s:%u. Going on...\n",wEndpoint->url,wEndpoint->port);
+						printf("WTM: Could not callback to matching Wiring Endpoint %s. Going on...\n",wEndpoint->url);
 					}
 
 				}
@@ -428,7 +428,7 @@ celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topo
 		arrayList_destroy(localWAs);
 	}
 	else{
-		printf("WTM: The passed callback is already installed on WiringEndpoint %s:%u\n",wepr->wiringEndpointDescription->url,wepr->wiringEndpointDescription->port);
+		printf("WTM: The passed callback is already installed on WiringEndpoint %s\n",wepr->wiringEndpointDescription->url);
 		status=CELIX_ILLEGAL_STATE;
 	}
 
@@ -457,7 +457,7 @@ celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_
 		status=wepr->wiringAdminService->removeExportedWiringEndpoint(wepr->wiringAdminService->admin,rsa_inaetics_cb);
 		if(status==CELIX_SUCCESS){
 			hashMap_remove(manager->installedWiringEndpoints,rsa_inaetics_cb);
-			printf("WTM: Uninstalled callback from Wiring Endpoint %s%u\n",wepr->wiringEndpointDescription->url,wepr->wiringEndpointDescription->port);
+			printf("WTM: Uninstalled callback from Wiring Endpoint %s\n",wepr->wiringEndpointDescription->url);
 			free(wepr);
 		}
 	}
@@ -480,19 +480,11 @@ celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt m
 	}
 
 	char* url=hashMap_get(properties,WIRING_ENDPOINT_DESCRIPTION_URL_KEY);
-	char* port=hashMap_get(properties,WIRING_ENDPOINT_DESCRIPTION_PORT_KEY);
 
 	if(url==NULL){
 		printf("WTM: No URL specified. Cannot look for a proper WiringProxy.\n");
 		return CELIX_ILLEGAL_ARGUMENT;
 	}
-
-
-	if(port==NULL){
-		printf("WTM: No port specified. Cannot look for a proper WiringProxy.\n");
-		return CELIX_ILLEGAL_ARGUMENT;
-	}
-
 
 	celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 	hash_map_iterator_pt iter = hashMapIterator_create(manager->importedWiringEndpoints);
@@ -500,7 +492,7 @@ celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt m
 		wiring_endpoint_description_pt wepd = hashMapIterator_nextKey(iter);
 		wiring_admin_service_pt wa = hashMapIterator_nextValue(iter);
 		/* If we are aware of such a node asked by RSA_Inaetics... */
-		if( (strcmp(wepd->url,url) == 0) && (wepd->port==strtoul(port,NULL,10))){
+		if(strcmp(wepd->url,url) == 0){
 			/* ... and we have a valid WiringProxy */
 			if(wa!=NULL){
 				status=wa->importWiringEndpoint(wa->admin,wepd,sendFunc,handle);

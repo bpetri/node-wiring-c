@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,6 +41,7 @@
 
 // defines how often the webserver is restarted (with an increased port number)
 #define MAX_NUMBER_OF_RESTARTS 	5
+#define MAX_URL_LENGTH 			128
 
 struct post {
 	const char *readptr;
@@ -53,8 +53,7 @@ struct get {
 	int size;
 };
 
-static const char *data_response_headers =
-		"HTTP/1.1 200 OK\r\n"
+static const char *data_response_headers = "HTTP/1.1 200 OK\r\n"
 		"Cache: no-cache\r\n"
 		"Content-Type: application/json\r\n"
 		"\r\n";
@@ -65,7 +64,6 @@ static int wiringAdmin_callback(struct mg_connection *conn);
 
 static size_t wiringAdmin_HTTPReqReadCallback(void *ptr, size_t size, size_t nmemb, void *userp);
 static size_t wiringAdmin_HTTPReqWrite(void *contents, size_t size, size_t nmemb, void *userp);
-
 
 celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *admin) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -80,7 +78,7 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		char *detectedIp = NULL;
 		(*admin)->context = context;
 
-		char* fwuuid=NULL;
+		char* fwuuid = NULL;
 		if (((bundleContext_getProperty((*admin)->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
 			printf("WA: Could not retrieve framework UUID!\n");
 			free(*admin);
@@ -88,9 +86,9 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		}
 
 		properties_pt props = properties_create();
-		properties_set(props,WIRING_ENDPOINT_PROTOCOL_KEY,WIRING_ENDPOINT_PROTOCOL_VALUE);
+		properties_set(props, WIRING_ENDPOINT_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
 
-		if( wiringEndpointDescription_create(fwuuid,props,&((*admin)->wEndpointDescription)) != CELIX_SUCCESS ){
+		if (wiringEndpointDescription_create(fwuuid, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
 			printf("WA: Could not create our own WiringEndpointDescription!\n");
 			free(*admin);
 			return CELIX_ENOMEM;
@@ -99,12 +97,11 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		celixThreadMutex_create(&(*admin)->exportedWiringEndpointFunctionLock, NULL);
 
 		celixThreadMutex_create(&(*admin)->wiringProxiesLock, NULL);
-		(*admin)->wiringProxies = hashMap_create(NULL,wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals);
-
+		(*admin)->wiringProxies = hashMap_create(NULL, wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals);
 
 		bundleContext_getProperty(context, NODE_DISCOVERY_NODE_WA_PORT, &port);
 		if (port == NULL) {
-			port = (char *)DEFAULT_WA_PORT;
+			port = (char *) DEFAULT_WA_PORT;
 		}
 
 		bundleContext_getProperty(context, NODE_DISCOVERY_NODE_WA_ADDRESS, &ip);
@@ -123,18 +120,6 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 			ip = detectedIp;
 		}
 
-		if (ip != NULL) {
-			(*admin)->wEndpointDescription->url = strdup(ip);
-		}
-		else {
-			printf("WA: No IP address for HTTP Wiring Endpint set. Using %s\n", DEFAULT_WA_ADDRESS);
-			(*admin)->wEndpointDescription->url = strdup((char*) DEFAULT_WA_ADDRESS);
-		}
-
-		if (detectedIp != NULL) {
-			free(detectedIp);
-		}
-
 		// Prepare callbacks structure. We have only one callback, the rest are NULL.
 		struct mg_callbacks callbacks;
 		memset(&callbacks, 0, sizeof(callbacks));
@@ -142,15 +127,11 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 
 		do {
 			char newPort[10];
-			const char *options[] = { "listening_ports", port, NULL};
+			const char *options[] = { "listening_ports", port, NULL };
 
 			(*admin)->ctx = mg_start(&callbacks, (*admin), options);
 
-			if ((*admin)->ctx != NULL) {
-				(*admin)->wEndpointDescription->port=strtol(port,NULL,10);
-
-			}
-			else {
+			if ((*admin)->ctx == NULL) {
 				char* endptr = port;
 				int currentPort = strtol(port, &endptr, 10);
 
@@ -161,40 +142,50 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 				}
 
 				port_counter++;
-				snprintf(&newPort[0], 6,  "%d", (currentPort+1));
+				snprintf(&newPort[0], 6, "%d", (currentPort + 1));
 
 				printf("WA: Error while starting WA server on port %s - retrying on port %s...\n", port, newPort);
 				port = newPort;
 			}
-		} while(((*admin)->ctx == NULL) && (port_counter < MAX_NUMBER_OF_RESTARTS));
+		} while (((*admin)->ctx == NULL) && (port_counter < MAX_NUMBER_OF_RESTARTS));
 
+		(*admin)->wEndpointDescription->url = calloc(MAX_URL_LENGTH, sizeof(*(*admin)->wEndpointDescription->url));
+
+		if (ip != NULL) {
+			snprintf((*admin)->wEndpointDescription->url, MAX_URL_LENGTH, "http://%s:%s", ip, port);
+		} else {
+			printf("WA: No IP address for HTTP Wiring Endpint set. Using %s\n", DEFAULT_WA_ADDRESS);
+			snprintf((*admin)->wEndpointDescription->url, MAX_URL_LENGTH, "http://%s:%s", (char*) DEFAULT_WA_ADDRESS, port);
+		}
+
+		if (status == CELIX_SUCCESS) {
+			printf("WA: HTTP Wiring Endpoint running at %s\n", (*admin)->wEndpointDescription->url);
+		} else {
+			printf("WA: Cannot activate HTTP Wiring Endpoint at %s\n", (*admin)->wEndpointDescription->url);
+		}
+
+		if (detectedIp != NULL) {
+			free(detectedIp);
+		}
 	}
 
-	if(status==CELIX_SUCCESS){
-		printf("WA: HTTP Wiring Endpoint running at %s:%u\n",(*admin)->wEndpointDescription->url,(*admin)->wEndpointDescription->port);
-	}
-	else{
-		printf("WA: Cannot activate HTTP Wiring Endpoint at %s:%u\n",(*admin)->wEndpointDescription->url,(*admin)->wEndpointDescription->port);
-	}
 	return status;
 }
 
-
-celix_status_t wiringAdmin_destroy(wiring_admin_pt* admin)
-{
+celix_status_t wiringAdmin_destroy(wiring_admin_pt* admin) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&((*admin)->exportedWiringEndpointFunctionLock));
-	(*admin)->rsa_inetics_callback=NULL;
+	(*admin)->rsa_inetics_callback = NULL;
 	celixThreadMutex_unlock(&((*admin)->exportedWiringEndpointFunctionLock));
 	celixThreadMutex_destroy(&((*admin)->exportedWiringEndpointFunctionLock));
 
 	celixThreadMutex_lock(&((*admin)->wiringProxiesLock));
-	hashMap_destroy((*admin)->wiringProxies,true,false);
+	hashMap_destroy((*admin)->wiringProxies, true, false);
 	celixThreadMutex_unlock(&((*admin)->wiringProxiesLock));
 	celixThreadMutex_destroy(&((*admin)->wiringProxiesLock));
 
-	status= wiringEndpointDescription_destroy((*admin)->wEndpointDescription);
+	status = wiringEndpointDescription_destroy((*admin)->wEndpointDescription);
 
 	free(*admin);
 	*admin = NULL;
@@ -206,20 +197,17 @@ celix_status_t wiringAdmin_stop(wiring_admin_pt admin) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	if (admin->ctx != NULL) {
-		printf("WA: Stopping HTTP Wiring Endpoint running at %s:%u ...\n",admin->wEndpointDescription->url,admin->wEndpointDescription->port);
+		printf("WA: Stopping HTTP Wiring Endpoint running at %s ...\n", admin->wEndpointDescription->url);
 		mg_stop(admin->ctx);
 		admin->ctx = NULL;
 	}
 
 	celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
-	admin->rsa_inetics_callback=NULL;
+	admin->rsa_inetics_callback = NULL;
 	celixThreadMutex_unlock(&admin->exportedWiringEndpointFunctionLock);
-
-
 
 	return status;
 }
-
 
 static int wiringAdmin_callback(struct mg_connection *conn) {
 	int result = 0; // zero means: let civetweb handle it further, any non-zero value means it is handled by us...
@@ -228,13 +216,12 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 	if (request_info->uri != NULL) {
 		wiring_admin_pt wa = request_info->user_data;
 
-
 		if (strcmp("POST", request_info->request_method) == 0) {
 
 			celixThreadMutex_lock(&wa->exportedWiringEndpointFunctionLock);
 
 			/* Pass all the data segment to the RSA_Inaetics using the callback function */
-			if(wa->rsa_inetics_callback!=NULL){
+			if (wa->rsa_inetics_callback != NULL) {
 
 				uint64_t datalength = request_info->content_length;
 				char* data = malloc(datalength + 1);
@@ -242,7 +229,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 				data[datalength] = '\0';
 
 				char *response = NULL;
-				wa->rsa_inetics_callback(data,&response);
+				wa->rsa_inetics_callback(data, &response);
 
 				if (response != NULL) {
 					mg_write(conn, data_response_headers, strlen(data_response_headers));
@@ -255,8 +242,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 				result = 1;
 
 				free(data);
-			}
-			else{
+			} else {
 				printf("WA: Received HTTP Request, but no RSA_Inaetics callback is installed. Discarding request.\n");
 			}
 
@@ -269,22 +255,21 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 	return result;
 }
 
-
-celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin,rsa_inaetics_receive_cb rsa_inaetics_cb) {
+celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	if(rsa_inaetics_cb==NULL){
+	if (rsa_inaetics_cb == NULL) {
 		return CELIX_ILLEGAL_ARGUMENT;
 	}
 
 	celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
-	admin->rsa_inetics_callback=rsa_inaetics_cb;
+	admin->rsa_inetics_callback = rsa_inaetics_cb;
 	celixThreadMutex_unlock(&admin->exportedWiringEndpointFunctionLock);
 
 	return status;
 }
 
-celix_status_t wiringAdmin_getWiringEndpoint(wiring_admin_pt admin,wiring_endpoint_description_pt* wEndpoint){
+celix_status_t wiringAdmin_getWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpoint) {
 
 	celix_status_t status = CELIX_SUCCESS;
 
@@ -297,21 +282,20 @@ celix_status_t wiringAdmin_getWiringEndpoint(wiring_admin_pt admin,wiring_endpoi
 celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	if(rsa_inaetics_cb==NULL){
+	if (rsa_inaetics_cb == NULL) {
 		return CELIX_ILLEGAL_ARGUMENT;
 	}
 
-	if(admin->rsa_inetics_callback==rsa_inaetics_cb){
+	if (admin->rsa_inetics_callback == rsa_inaetics_cb) {
 		celixThreadMutex_lock(&admin->exportedWiringEndpointFunctionLock);
-		admin->rsa_inetics_callback=NULL;
+		admin->rsa_inetics_callback = NULL;
 		celixThreadMutex_unlock(&admin->exportedWiringEndpointFunctionLock);
 	}
 
 	return status;
 }
 
-
-celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription,rsa_inaetics_send* send,wiring_handle* handle) {
+celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription, rsa_inaetics_send* send, wiring_handle* handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	// WTM already checked for us that wEndpointDescription properties matches our properties
@@ -319,22 +303,21 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
 	celixThreadMutex_lock(&admin->wiringProxiesLock);
 
 	void* h = malloc(1);
-	hashMap_put(admin->wiringProxies,h,wEndpointDescription);
-	*handle=h;
-	*send=wiringAdmin_send;
+	hashMap_put(admin->wiringProxies, h, wEndpointDescription);
+	*handle = h;
+	*send = wiringAdmin_send;
 
 	celixThreadMutex_unlock(&admin->wiringProxiesLock);
 
 	return status;
 }
 
-
 celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, wiring_handle handle) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&admin->wiringProxiesLock);
 
-	hashMap_remove(admin->wiringProxies,handle);
+	hashMap_remove(admin->wiringProxies, handle);
 	free(handle);
 
 	celixThreadMutex_unlock(&admin->wiringProxiesLock);
@@ -342,16 +325,15 @@ celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, w
 	return status;
 }
 
-
 celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus) {
 
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&admin->wiringProxiesLock);
-	wiring_endpoint_description_pt wepd = (wiring_endpoint_description_pt)hashMap_get(admin->wiringProxies,handle);
+	wiring_endpoint_description_pt wepd = (wiring_endpoint_description_pt) hashMap_get(admin->wiringProxies, handle);
 	celixThreadMutex_unlock(&admin->wiringProxiesLock);
 
-	if(wepd==NULL){
+	if (wepd == NULL) {
 		return CELIX_ILLEGAL_STATE;
 	}
 
@@ -364,14 +346,14 @@ celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *reque
 	get.writeptr = malloc(1);
 
 	char url[256];
-	memset(url,0,256);
-	snprintf(url, 256, "http://%s:%u", wepd->url,wepd->port);
+	memset(url, 0, 256);
+	snprintf(url, 256, "http://%s", wepd->url);
 
 	CURL *curl;
 	CURLcode res;
 
 	curl = curl_easy_init();
-	if(!curl) {
+	if (!curl) {
 		status = CELIX_ILLEGAL_STATE;
 	} else {
 		curl_easy_setopt(curl, CURLOPT_URL, &url[0]);
@@ -406,7 +388,7 @@ static size_t wiringAdmin_HTTPReqReadCallback(void *ptr, size_t size, size_t nme
 
 static size_t wiringAdmin_HTTPReqWrite(void *contents, size_t size, size_t nmemb, void *userp) {
 	size_t realsize = size * nmemb;
-	struct get *mem = (struct get *)userp;
+	struct get *mem = (struct get *) userp;
 
 	mem->writeptr = realloc(mem->writeptr, mem->size + realsize + 1);
 	if (mem->writeptr == NULL) {
