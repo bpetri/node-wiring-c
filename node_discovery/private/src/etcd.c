@@ -93,7 +93,6 @@ bool etcd_get(char* key, char* value, char* action, int* modifiedIndex) {
 	bool retVal = false;
 	char url[MAX_URL_LENGTH];
 	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s", etcd_server, etcd_port, key);
-
 	res = performRequest(url, GET, WriteMemoryCallback, NULL, (void*) &reply);
 
 	if (res == CURLE_OK) {
@@ -119,15 +118,14 @@ bool etcd_get(char* key, char* value, char* action, int* modifiedIndex) {
 		free(reply.memory);
 	}
 
-
 	return retVal;
 }
 
-// getNodes
-bool etcd_getNodes(char* directory, char** nodeNames, int* size) {
+/** */bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 	json_t* js_root = NULL;
-	json_t* js_node = NULL;
-	json_t* js_nodes = NULL;
+	json_t* js_rootnode = NULL;
+	json_t* js_zones = NULL;
+
 	json_error_t error;
 	int res;
 	struct MemoryStruct reply;
@@ -137,7 +135,8 @@ bool etcd_getNodes(char* directory, char** nodeNames, int* size) {
 
 	bool retVal = false;
 	char url[MAX_URL_LENGTH];
-	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s", etcd_server, etcd_port, directory);
+
+	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s?recursive=true", etcd_server, etcd_port, directory);
 
 	res = performRequest(url, GET, WriteMemoryCallback, NULL, (void*) &reply);
 
@@ -145,31 +144,67 @@ bool etcd_getNodes(char* directory, char** nodeNames, int* size) {
 		js_root = json_loads(reply.memory, 0, &error);
 
 		if (js_root != NULL) {
-			js_node = json_object_get(js_root, ETCD_JSON_NODE);
+			js_rootnode = json_object_get(js_root, ETCD_JSON_NODE);
 		}
-		if (js_root != NULL) {
-			js_nodes = json_object_get(js_node, ETCD_JSON_NODES);
+		if (js_rootnode != NULL) {
+			js_zones = json_object_get(js_rootnode, ETCD_JSON_NODES);
 		}
 
-
-		if (js_nodes != NULL && json_is_array(js_nodes)) {
+		if (js_zones != NULL && json_is_array(js_zones)) {
 			int i = 0;
-			retVal = true;
 
-			for (i = 0; i < json_array_size(js_nodes) && i < MAX_NODES; i++) {
-				json_t* js_node = json_array_get(js_nodes, i);
+			for (i = 0; i < json_array_size(js_zones) && i < MAX_ZONES; i++) {
+				json_t* js_zone = json_array_get(js_zones, i);
+				json_t* js_nodes = NULL;
 
-				if (!json_is_object(js_node)) {
-					retVal = false;
-				} else {
-					json_t* js_key = json_object_get(js_node, ETCD_JSON_KEY);
-					strncpy(nodeNames[i], json_string_value(js_key), MAX_KEY_LENGTH);
+				if (js_zone != NULL) {
+					js_nodes = json_object_get(js_zone, ETCD_JSON_NODES);
+				}
+
+				if (js_nodes != NULL && json_is_array(js_nodes)) {
+					int j = 0;
+
+					for (j = 0; j < json_array_size(js_nodes) && j < MAX_NODES; j++) {
+						json_t* js_node = json_array_get(js_nodes, j);
+						json_t* js_users = NULL;
+
+						if (js_node != NULL) {
+							js_users = json_object_get(js_node, ETCD_JSON_NODES);
+						}
+
+						if (js_users != NULL && json_is_array(js_users)) {
+							int k = 0;
+
+							for (k = 0; k < json_array_size(js_users) && k < MAX_USERS; k++) {
+								json_t* js_user = json_array_get(js_users, k);
+								json_t* js_protocols = NULL;
+
+								if (js_user != NULL) {
+									js_protocols = json_object_get(js_user, ETCD_JSON_NODES);
+								}
+
+								if (js_protocols != NULL && json_is_array(js_protocols)) {
+									int l = 0;
+
+									for (l = 0; l < json_array_size(js_protocols) && l < MAX_PROTOCOLS; l++) {
+										json_t* js_protocol = json_array_get(js_protocols, l);
+
+										if (json_is_object(js_protocol)) {
+											retVal = true;
+											json_t* js_key = json_object_get(js_protocol, ETCD_JSON_KEY);
+											strncpy(endpoints[i], json_string_value(js_key), MAX_KEY_LENGTH);
+										}
+									}
+									*size = i;
+								}
+							}
+						}
+					}
 				}
 			}
-			*size = i;
-		}
-		if (js_root != NULL) {
-			json_decref(js_root);
+			if (js_root != NULL) {
+				json_decref(js_root);
+			}
 		}
 	}
 
@@ -179,8 +214,6 @@ bool etcd_getNodes(char* directory, char** nodeNames, int* size) {
 
 	return retVal;
 }
-
-
 
 bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 	json_error_t error;
@@ -201,13 +234,12 @@ bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 	cur += snprintf(cur, MAX_CONTENT_LENGTH, "value=%s", value);
 
 	if (ttl > 0)
-	    cur += snprintf(cur, MAX_CONTENT_LENGTH, ";ttl=%d", ttl);
+		cur += snprintf(cur, MAX_CONTENT_LENGTH, ";ttl=%d", ttl);
 
 	if (prevExist)
-	    cur += snprintf(cur, MAX_CONTENT_LENGTH, ";prevExist=true");
+		cur += snprintf(cur, MAX_CONTENT_LENGTH, ";prevExist=true");
 
 	res = performRequest(url, PUT, WriteMemoryCallback, request, (void*) &reply);
-
 
 	if (res == CURLE_OK) {
 		js_root = json_loads(reply.memory, 0, &error);
@@ -233,8 +265,6 @@ bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 	return retVal;
 }
 
-
-
 //delete
 bool etcd_del(char* key) {
 	json_error_t error;
@@ -249,7 +279,7 @@ bool etcd_del(char* key) {
 	reply.memory = malloc(1); /* will be grown as needed by the realloc above */
 	reply.size = 0; /* no data at this point */
 
-	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s", etcd_server, etcd_port, key);
+	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s?recursive=true", etcd_server, etcd_port, key);
 	res = performRequest(url, DELETE, WriteMemoryCallback, request, (void*) &reply);
 
 	if (res == CURLE_OK) {
@@ -269,7 +299,6 @@ bool etcd_del(char* key) {
 	if (reply.memory) {
 		free(reply.memory);
 	}
-
 
 	return retVal;
 }
@@ -293,8 +322,7 @@ bool etcd_watch(char* key, int index, char* action, char* prevValue, char* value
 	reply.size = 0; /* no data at this point */
 
 	if (index != 0)
-		snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s?wait=true&recursive=true&waitIndex=%d", etcd_server, etcd_port, key,
-				index);
+		snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s?wait=true&recursive=true&waitIndex=%d", etcd_server, etcd_port, key, index);
 	else
 		snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s?wait=true&recursive=true", etcd_server, etcd_port, key);
 

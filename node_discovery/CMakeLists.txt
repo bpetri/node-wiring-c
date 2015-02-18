@@ -37,7 +37,6 @@ bundle(org.inaetics.node_discovery.etcd.NodeDiscovery SOURCES
 	private/src/etcd_watcher.c
 	private/src/node_discovery.c
 	private/src/node_discovery_activator.c
-	private/src/node_description_writer.c
 	private/src/node_description.c
    ${PROJECT_SOURCE_DIR}/wiring_common/private/src/wiring_endpoint_description.c
 )

@@ -31,7 +31,9 @@
 #include "array_list.h"
 #include "remote_constants.h"
 
-#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY		"ep_url"
+#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY				"ep_url"
+#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY		"ep_protocol"
+#define WIRING_ENDPOINT_DESCRIPTION_USER_KEY			"ep_user"
 
 struct wiring_endpoint_description {
     char *frameworkUUID;

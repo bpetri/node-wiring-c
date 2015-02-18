@@ -41,8 +41,6 @@ static const char * const INAETICS_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 #define NODE_DISCOVERY_NODE_WA_PORT		"NODE_DISCOVERY_NODE_WA_PORT"
 #define NODE_DISCOVERY_NODE_WA_ITF 		"NODE_DISCOVERY_NODE_WA_ITF"
 
-#define WIRING_ENDPOINT_PROTOCOL_KEY 	"ep_protocol"
-
 typedef struct wiring_admin *wiring_admin_pt;
 
 typedef celix_status_t (*rsa_inaetics_receive_cb)(char* data, char**response);

@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -17,7 +16,6 @@
 #include "service_registration.h"
 #include "remote_constants.h"
 
-
 #include "etcd_watcher.h"
 #include "wiring_admin.h"
 #include "node_description_impl.h"
@@ -25,14 +23,12 @@
 #include "wiring_endpoint_listener.h"
 #include "wiring_common_utils.h"
 
-
 static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt node_discovery, node_description_pt* node_description) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	char* fwuuid = NULL;
 	char* inZoneIdentifier = NULL;
 	char* inNodeIdentifier = NULL;
-
 
 	if (((bundleContext_getProperty(node_discovery->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
 		status = CELIX_ILLEGAL_STATE;
@@ -48,16 +44,15 @@ static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt 
 
 	if (status == CELIX_SUCCESS) {
 
-		properties_pt props=properties_create();
+		properties_pt props = properties_create();
 		properties_set(props, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inNodeIdentifier);
 		properties_set(props, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inZoneIdentifier);
 
-		nodeDescription_create(fwuuid,props,node_description);
+		nodeDescription_create(fwuuid, props, node_description);
 	}
 
 	return status;
 }
-
 
 celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_pt *node_discovery) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -66,8 +61,7 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 
 	if (!*node_discovery) {
 		status = CELIX_ENOMEM;
-	}
-	else {
+	} else {
 		(*node_discovery)->context = context;
 		(*node_discovery)->discoveredNodes = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
 		(*node_discovery)->listenerReferences = hashMap_create(serviceReference_hashCode, NULL, serviceReference_equals2, NULL);
@@ -83,8 +77,6 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 	return status;
 }
 
-
-
 celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 	celix_status_t status = CELIX_SUCCESS;
 
@@ -92,9 +84,9 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 
 	hash_map_iterator_pt iter = hashMapIterator_create(node_discovery->discoveredNodes);
 
-	while(hashMapIterator_hasNext(iter)){
-		node_description_pt node_desc= (node_description_pt)hashMapIterator_nextValue(iter);
-		nodeDescription_destroy(node_desc,true);
+	while (hashMapIterator_hasNext(iter)) {
+		node_description_pt node_desc = (node_description_pt) hashMapIterator_nextValue(iter);
+		nodeDescription_destroy(node_desc, true);
 	}
 
 	hashMapIterator_destroy(iter);
@@ -106,7 +98,6 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 
 	celixThreadMutex_destroy(&node_discovery->discoveredNodesMutex);
 
-
 	celixThreadMutex_lock(&node_discovery->listenerReferencesMutex);
 
 	hashMap_destroy(node_discovery->listenerReferences, false, false);
@@ -116,9 +107,8 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery) {
 
 	celixThreadMutex_destroy(&node_discovery->listenerReferencesMutex);
 
-
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
-	nodeDescription_destroy(node_discovery->ownNode,false);
+	nodeDescription_destroy(node_discovery->ownNode, false);
 	celixThreadMutex_unlock(&node_discovery->ownNodeMutex);
 	celixThreadMutex_destroy(&node_discovery->ownNodeMutex);
 
@@ -151,16 +141,16 @@ celix_status_t node_discovery_stop(node_discovery_pt node_discovery) {
 	celixThreadMutex_lock(&node_discovery->discoveredNodesMutex);
 
 	hash_map_iterator_pt node_iter = hashMapIterator_create(node_discovery->discoveredNodes);
-	while(hashMapIterator_hasNext(node_iter)){
-		node_description_pt node_desc= hashMapIterator_nextValue(node_iter);
+	while (hashMapIterator_hasNext(node_iter)) {
+		node_description_pt node_desc = hashMapIterator_nextValue(node_iter);
 
 		celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
 
 		array_list_iterator_pt wep_it = arrayListIterator_create(node_desc->wiring_ep_descriptions_list);
 
-		while(arrayListIterator_hasNext(wep_it)){
+		while (arrayListIterator_hasNext(wep_it)) {
 			wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
-			node_discovery_informWiringEndpointListeners(node_discovery,wep,false);
+			node_discovery_informWiringEndpointListeners(node_discovery, wep, false);
 		}
 
 		arrayListIterator_destroy(wep_it);
@@ -176,14 +166,13 @@ celix_status_t node_discovery_stop(node_discovery_pt node_discovery) {
 	return status;
 }
 
-
 celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* key, node_description_pt node_desc) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	celixThreadMutex_lock(&node_discovery->discoveredNodesMutex);
 
-	bool exists = hashMap_get(node_discovery->discoveredNodes,key);
-	if(!exists){
+	bool exists = hashMap_get(node_discovery->discoveredNodes, key);
+	if (!exists) {
 		hashMap_put(node_discovery->discoveredNodes, strdup(key), node_desc);
 		printf("\nNODE_DISCOVERY: Node %s added\n", key);
 		//dump_node_description(node_desc);
@@ -194,9 +183,9 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 
 	array_list_iterator_pt wep_it = arrayListIterator_create(node_desc->wiring_ep_descriptions_list);
 
-	while(arrayListIterator_hasNext(wep_it)){
+	while (arrayListIterator_hasNext(wep_it)) {
 		wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
-		node_discovery_informWiringEndpointListeners(node_discovery,wep,true);
+		node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
 	}
 
 	arrayListIterator_destroy(wep_it);
@@ -206,44 +195,40 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 	return status;
 }
 
-
-
 celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char* key) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	char* node_key=NULL;
-	node_description_pt node_desc=NULL;
+	char* node_key = NULL;
+	node_description_pt node_desc = NULL;
 
 	celixThreadMutex_lock(&node_discovery->discoveredNodesMutex);
 
-	hash_map_entry_pt entry = hashMap_getEntry(node_discovery->discoveredNodes,key);
-	if(entry!=NULL){
-		node_key=hashMapEntry_getKey(entry);
-		node_desc=hashMapEntry_getValue(entry);
+	hash_map_entry_pt entry = hashMap_getEntry(node_discovery->discoveredNodes, key);
+	if (entry != NULL) {
+		node_key = hashMapEntry_getKey(entry);
+		node_desc = hashMapEntry_getValue(entry);
 
-		hashMap_remove(node_discovery->discoveredNodes,key);
+		hashMap_remove(node_discovery->discoveredNodes, key);
 		free(node_key);
 	}
 	celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
 
-
-	if(node_desc!=NULL){
+	if (node_desc != NULL) {
 
 		celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
 
 		array_list_iterator_pt wep_it = arrayListIterator_create(node_desc->wiring_ep_descriptions_list);
 
-		while(arrayListIterator_hasNext(wep_it)){
+		while (arrayListIterator_hasNext(wep_it)) {
 			wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
-			node_discovery_informWiringEndpointListeners(node_discovery,wep,false);
+			node_discovery_informWiringEndpointListeners(node_discovery, wep, false);
 		}
 
 		arrayListIterator_destroy(wep_it);
 
-
 		celixThreadMutex_unlock(&node_desc->wiring_ep_desc_list_lock);
 
-		nodeDescription_destroy(node_desc,true);
+		nodeDescription_destroy(node_desc, true);
 	}
 
 	printf("\nNODE_DISCOVERY: Node %s removed\n", key);
@@ -251,8 +236,7 @@ celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char*
 	return status;
 }
 
-
-celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt node_discovery, wiring_endpoint_description_pt wEndpoint, bool wEndpointAdded){
+celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt node_discovery, wiring_endpoint_description_pt wEndpoint, bool wEndpointAdded) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	// Inform listeners of new endpoint
@@ -290,11 +274,10 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
 
 	status = celixThreadMutex_unlock(&node_discovery->listenerReferencesMutex);
 
-
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter){
+celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt node_discovery = handle;
@@ -302,17 +285,17 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
 
 	// Wiring Endpoint Description added by WTM must have the same UUID as the local frameworkUUID
-	if(strcmp(wEndpoint->frameworkUUID,node_discovery->ownNode->nodeId)!=0){
-		printf("NODE_DISCOVERY: WEPListener service trying to add WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n",wEndpoint->frameworkUUID,node_discovery->ownNode->nodeId);
-		status=CELIX_ILLEGAL_STATE;
+	if (strcmp(wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId) != 0) {
+		printf("NODE_DISCOVERY: WEPListener service trying to add WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n", wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId);
+		status = CELIX_ILLEGAL_STATE;
 	}
 
 	celixThreadMutex_lock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
 
 	array_list_iterator_pt wep_it = arrayListIterator_create(node_discovery->ownNode->wiring_ep_descriptions_list);
 
-	while(arrayListIterator_hasNext(wep_it) && status==CELIX_SUCCESS){
-		wiring_endpoint_description_pt wep=arrayListIterator_next(wep_it);
+	while (arrayListIterator_hasNext(wep_it) && status == CELIX_SUCCESS) {
+		wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
 
 		// Trying to add twice the same Wiring Endpoint Description should never happen!!
 		if (!strcmp(wEndpoint->url, wep->url)) {
@@ -323,20 +306,18 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 
 	arrayListIterator_destroy(wep_it);
 
-	if(status==CELIX_SUCCESS){ // No problems , we can add the new Wiring Endpoint Description
-		arrayList_add(node_discovery->ownNode->wiring_ep_descriptions_list,wEndpoint);
+	if (status == CELIX_SUCCESS) { // No problems , we can add the new Wiring Endpoint Description
+		arrayList_add(node_discovery->ownNode->wiring_ep_descriptions_list, wEndpoint);
+		etcdWatcher_addOwnNode(node_discovery->watcher);
 	}
 
 	celixThreadMutex_unlock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
-
-	// Node Description update in ETCD is done by the etcd_watcher_run thread periodically
-
 	celixThreadMutex_unlock(&node_discovery->ownNodeMutex);
 
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter){
+celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt node_discovery = handle;
@@ -344,17 +325,17 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
 
 	// Wiring Endpoint Description removed by WTM must have the same UUID as the local frameworkUUID
-	if(strcmp(wEndpoint->frameworkUUID,node_discovery->ownNode->nodeId)!=0){
-		printf("NODE_DISCOVERY: WEPListener service trying to remove WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n",wEndpoint->frameworkUUID,node_discovery->ownNode->nodeId);
-		status=CELIX_ILLEGAL_STATE;
+	if (strcmp(wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId) != 0) {
+		printf("NODE_DISCOVERY: WEPListener service trying to remove WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n", wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId);
+		status = CELIX_ILLEGAL_STATE;
 	}
 
-	int i=0;
+	int i = 0;
 
 	celixThreadMutex_lock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
 
-	for(;i<arrayList_size(node_discovery->ownNode->wiring_ep_descriptions_list);i++){
-		wiring_endpoint_description_pt wep=arrayList_get(node_discovery->ownNode->wiring_ep_descriptions_list,i);
+	for (; i < arrayList_size(node_discovery->ownNode->wiring_ep_descriptions_list); i++) {
+		wiring_endpoint_description_pt wep = arrayList_get(node_discovery->ownNode->wiring_ep_descriptions_list, i);
 
 		if (!strcmp(wEndpoint->url, wep->url)) {
 			wep = arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list, i);
@@ -373,17 +354,17 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointListenerAdding(void * handle, service_reference_pt reference, void **service){
+celix_status_t node_discovery_wiringEndpointListenerAdding(void * handle, service_reference_pt reference, void **service) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt node_discovery = handle;
 
-	status=bundleContext_getService(node_discovery->context, reference, service);
+	status = bundleContext_getService(node_discovery->context, reference, service);
 
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service_reference_pt reference, void * service){
+celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service_reference_pt reference, void * service) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt nodeDiscovery = handle;
@@ -397,20 +378,19 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 
 	if (nodeDiscoveryListener != NULL && strcmp(nodeDiscoveryListener, "true") == 0) {
 		//printf("NODE_DISCOVERY: Ignoring my WiringEndpointListener\n");
-	}
-	else{
+	} else {
 		celixThreadMutex_lock(&nodeDiscovery->discoveredNodesMutex);
 
 		hash_map_iterator_pt iter = hashMapIterator_create(nodeDiscovery->discoveredNodes);
 		while (hashMapIterator_hasNext(iter)) {
 			node_description_pt node_desc = hashMapIterator_nextValue(iter);
 
-			int i=0;
+			int i = 0;
 
 			celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
 
-			for(;i<arrayList_size(node_desc->wiring_ep_descriptions_list);i++){
-				wiring_endpoint_description_pt ep_desc = arrayList_get(node_desc->wiring_ep_descriptions_list,i);
+			for (; i < arrayList_size(node_desc->wiring_ep_descriptions_list); i++) {
+				wiring_endpoint_description_pt ep_desc = arrayList_get(node_desc->wiring_ep_descriptions_list, i);
 
 				bool matchResult = false;
 				filter_match(filter, ep_desc->properties, &matchResult);
@@ -442,18 +422,17 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointListenerModified(void * handle, service_reference_pt reference, void * service){
+celix_status_t node_discovery_wiringEndpointListenerModified(void * handle, service_reference_pt reference, void * service) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	status = node_discovery_wiringEndpointListenerRemoved(handle,reference,service);
-	status = node_discovery_wiringEndpointListenerAdded(handle,reference,service);
+	status = node_discovery_wiringEndpointListenerRemoved(handle, reference, service);
+	status = node_discovery_wiringEndpointListenerAdded(handle, reference, service);
 
 	return status;
 }
 
-celix_status_t node_discovery_wiringEndpointListenerRemoved(void * handle, service_reference_pt reference, void * service){
+celix_status_t node_discovery_wiringEndpointListenerRemoved(void * handle, service_reference_pt reference, void * service) {
 	celix_status_t status = CELIX_SUCCESS;
-
 
 	node_discovery_pt nodeDiscovery = handle;
 
@@ -469,5 +448,4 @@ celix_status_t node_discovery_wiringEndpointListenerRemoved(void * handle, servi
 
 	return status;
 }
-
 

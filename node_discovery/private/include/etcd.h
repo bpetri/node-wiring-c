@@ -3,7 +3,11 @@
 
 #include <stdbool.h>
 
+
+#define MAX_PROTOCOLS		16
+#define MAX_USERS			256
 #define MAX_NODES			256
+#define MAX_ZONES			64
 
 #define MAX_KEY_LENGTH		256
 #define MAX_VALUE_LENGTH	4096
@@ -20,9 +24,16 @@
 #define ETCD_JSON_VALUE			"value"
 #define ETCD_JSON_MODIFIEDINDEX	"modifiedIndex"
 
+
+#define ETCD_KEY_SUFFIX_COMPLETE 		"complete"
+#define ETCD_KEY_SUFFIX_URL		 		"url"
+#define ETCD_KEY_SUFFIX_METADATA		"metadata"
+
+
+
 bool etcd_init(char* server, int port);
 bool etcd_get(char* key, char* value, char*action, int* modifiedIndex);
-bool etcd_getNodes(char* directory, char** nodeNames, int* size);
+bool etcd_getEndpoints(char* directory, char** endpoints, int* size);
 bool etcd_set(char* key, char* value, int ttl, bool prevExist);
 bool etcd_del(char* key);
 bool etcd_watch(char* key, int index, char* action, char* prevValue, char* value, char* rkey);

@@ -86,7 +86,8 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		}
 
 		properties_pt props = properties_create();
-		properties_set(props, WIRING_ENDPOINT_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
+		properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
+		properties_set(props, WIRING_ENDPOINT_DESCRIPTION_USER_KEY, WIRING_ENDPOINT_USER_VALUE);
 
 		if (wiringEndpointDescription_create(fwuuid, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
 			printf("WA: Could not create our own WiringEndpointDescription!\n");
