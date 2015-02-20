@@ -1,9 +1,5 @@
-/*
- * wiring_endpoint_description.c
-
- *
- *  Created on: Jan 23, 2015
- *      Author: dn234
+/**
+ * Licensed under Apache License v2. See LICENSE for more information.
  */
 
 #include <stdio.h>

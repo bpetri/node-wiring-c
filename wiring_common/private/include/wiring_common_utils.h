@@ -1,8 +1,5 @@
-/*
- * wiring_common_utils.h
- *
- *  Created on: Feb 6, 2015
- *      Author: dn234
+/**
+ * Licensed under Apache License v2. See LICENSE for more information.
  */
 
 #ifndef WIRING_COMMON_UTILS_H_

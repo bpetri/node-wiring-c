@@ -1,8 +1,5 @@
-/*
- * wiring_topology_manager.h
- *
- *  Created on: Feb 11, 2015
- *      Author: dn234
+/**
+ * Licensed under Apache License v2. See LICENSE for more information.
  */
 
 #ifndef WIRING_TOPOLOGY_MANAGER_H_

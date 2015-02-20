@@ -1,3 +1,7 @@
+/**
+ * Licensed under Apache License v2. See LICENSE for more information.
+ */
+
 
 #ifndef NODE_DISCOVERY_IMPL_H_
 #define NODE_DISCOVERY_IMPL_H_

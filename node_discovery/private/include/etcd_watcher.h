@@ -1,3 +1,7 @@
+/**
+ * Licensed under Apache License v2. See LICENSE for more information.
+ */
+
 
 #ifndef ETCD_WATCHER_H_
 #define ETCD_WATCHER_H_
