@@ -121,7 +121,7 @@ bool etcd_get(char* key, char* value, char* action, int* modifiedIndex) {
 	return retVal;
 }
 
-/** */bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
+bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 	json_t* js_root = NULL;
 	json_t* js_rootnode = NULL;
 	json_t* js_zones = NULL;
@@ -141,6 +141,7 @@ bool etcd_get(char* key, char* value, char* action, int* modifiedIndex) {
 	res = performRequest(url, GET, WriteMemoryCallback, NULL, (void*) &reply);
 
 	if (res == CURLE_OK) {
+
 		js_root = json_loads(reply.memory, 0, &error);
 
 		if (js_root != NULL) {
@@ -192,6 +193,7 @@ bool etcd_get(char* key, char* value, char* action, int* modifiedIndex) {
 										if (json_is_object(js_protocol)) {
 											retVal = true;
 											json_t* js_key = json_object_get(js_protocol, ETCD_JSON_KEY);
+
 											strncpy(endpoints[i], json_string_value(js_key), MAX_KEY_LENGTH);
 										}
 									}

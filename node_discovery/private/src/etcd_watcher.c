@@ -93,7 +93,7 @@ static celix_status_t etcdWatcher_addAlreadyExistingNodes(node_discovery_pt node
 				char* key = endpointArray[i];
 				int modIndex = 0;
 
-				status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &nodeDescription);
+				status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &nodeDescription, &modIndex);
 
 				if (status == CELIX_SUCCESS) {
 					node_discovery_addNode(node_discovery, &key[0], nodeDescription);
@@ -183,35 +183,49 @@ celix_status_t etcdWatcher_addOwnNode(etcd_watcher_pt watcher) {
 }
 
 // gets everything from provided key
-celix_status_t etcdWatcher_getWiringEndpointFromKey(node_discovery_pt node_discovery, char* key, node_description_pt* nodeDescription) {
+celix_status_t etcdWatcher_getWiringEndpointFromKey(node_discovery_pt node_discovery, char* key, node_description_pt* nodeDescription, int* modIndex) {
 
 	celix_status_t status = CELIX_SUCCESS;
 
 	char etcdKeyUrl[MAX_LOCALNODE_LENGTH];
 	char etcdValueUrl[MAX_LOCALNODE_LENGTH];
+	char etcdKeyComplete[MAX_LOCALNODE_LENGTH];
+
 	char etcdKeyMetadata[MAX_LOCALNODE_LENGTH];
 	char etcdValueMetadata[MAX_LOCALNODE_LENGTH];
+	char etcdValueComplete[MAX_LOCALNODE_LENGTH];
+
 	char action[MAX_ACTION_LENGTH];
-	int modIndex;
+	int lclIndex;
 
 	snprintf(&etcdKeyUrl[0], MAX_LOCALNODE_LENGTH, "%s/%s", key, ETCD_KEY_SUFFIX_URL);
 	snprintf(&etcdKeyMetadata[0], MAX_LOCALNODE_LENGTH, "%s/%s", key, ETCD_KEY_SUFFIX_METADATA);
+	snprintf(&etcdKeyComplete[0], MAX_LOCALNODE_LENGTH, "%s/%s", key, ETCD_KEY_SUFFIX_COMPLETE);
 
 	// get url
-	if (etcd_get(&etcdKeyUrl[0], &etcdValueUrl[0], &action[0], &modIndex) != true) {
+	if (etcd_get(&etcdKeyUrl[0], &etcdValueUrl[0], &action[0], &lclIndex) != true) {
+		printf("Could not retrieve URL value for %s\n", (&etcdKeyUrl[0]));
 		status = CELIX_ILLEGAL_STATE;
-	} else if (etcd_get(&etcdKeyMetadata[0], &etcdValueMetadata[0], &action[0], &modIndex) != true) {
+	} else if (etcd_get(&etcdKeyMetadata[0], &etcdValueMetadata[0], &action[0], &lclIndex) != true) {
+		printf("Could not retrieve Metadata value for %s\n", (&etcdKeyMetadata[0]));
+		status = CELIX_ILLEGAL_STATE;
+	} else if (etcd_get(&etcdKeyComplete[0], &etcdValueComplete[0], &action[0], modIndex) != true) {
+		printf("Could not retrieve Complete value for %s\n", (&etcdKeyComplete[0]));
 		status = CELIX_ILLEGAL_STATE;
 	} else {
 		char rootPath[MAX_ROOTNODE_LENGTH];
 		char expr[MAX_LOCALNODE_LENGTH];
-		char* zoneId = NULL;
-		char* nodeId = NULL;
+		char zoneId[4096];
+		char nodeId[4096];
 
 		etcdWatcher_getRootPath(node_discovery->context, &rootPath[0]);
 
-		snprintf(expr, MAX_LOCALNODE_LENGTH, "%s/%%s/%%s/.*", rootPath);
-		if (sscanf(key, expr, zoneId, nodeId) != 2) {
+		snprintf(expr, MAX_LOCALNODE_LENGTH, "/%s/%%[^/]/%%[^/]/.*", rootPath);
+
+		int foundItems = sscanf(key, expr, &zoneId[0], &nodeId[0]);
+
+		if (foundItems != 2) {
+			printf("Could not find zone/node (key: %s) \n", key);
 			status = CELIX_ILLEGAL_STATE;
 		} else {
 			properties_pt nodeDescProperties = properties_create();
@@ -276,11 +290,11 @@ static void* etcdWatcher_run(void* data) {
 				if ((lengthSuffix < lengthKey) && (strncmp(rkey + lengthKey - lengthSuffix, ETCD_KEY_SUFFIX_COMPLETE, lengthSuffix) == 0) && (strcmp(value, "true") == 0)) {
 					// complete key found and set to true
 					node_description_pt nodeDescription = NULL;
+
 					char key[MAX_KEY_LENGTH];
+					snprintf(key, lengthKey - lengthSuffix, "%s", rkey);
 
-					strncpy(key, rkey, lengthKey - lengthSuffix);
-
-					celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &nodeDescription);
+					celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &nodeDescription, &highestModified);
 
 					if (status == CELIX_SUCCESS) {
 						node_discovery_addNode(node_discovery, &key[0], nodeDescription);

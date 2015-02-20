@@ -15,21 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-cmake_minimum_required(VERSION 2.8)
-project(inaetics-wiring C)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CELIX_DIR}/share/celix/cmake/modules")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long")
+include_directories("${PROJECT_SOURCE_DIR}/wiring_common/public/include")
+include_directories("${CELIX_INCLUDE_DIRS}/remote_service_admin")
+include_directories("private/include")
+include_directories("public/include")
 
 
-find_package(CELIX REQUIRED)
-include_directories(${CELIX_INCLUDE_DIRS})
+SET(BUNDLE_SYMBOLICNAME "org.inaetics.wiring_echoServer")
+SET(BUNDLE_VERSION "0.0.1")
+SET(BUNDLE_NAME "org.inaetics.wiring_echoServer")
 
-add_subdirectory(wiring_topology_manager)
-add_subdirectory(node_discovery)
-add_subdirectory(wiring_admin)
-add_subdirectory(echo_server)
-#add_subdirectory(inaetics_remote_service_admin)
 
-deploy_targets()
+bundle(org.inaetics.wiring_echoServer SOURCES
+	private/src/activator.c
+)
+
+install_bundle(org.inaetics.wiring_echoServer)
+	
+target_link_libraries(org.inaetics.wiring_echoServer)
