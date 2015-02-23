@@ -21,7 +21,7 @@ struct wiring_topology_manager_service {
 	celix_status_t (*installCallbackToWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties, rsa_inaetics_receive_cb rsa_inaetics_cb);
 	celix_status_t (*uninstallCallbackFromWiringEndpoint)(wiring_topology_manager_pt manager, rsa_inaetics_receive_cb rsa_inaetics_cb);
 
-	celix_status_t (*getWiringProxy)(wiring_topology_manager_pt manager,properties_pt properties, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle);
+	celix_status_t (*getWiringProxy)(wiring_topology_manager_pt manager, char* wireId, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle);
 	celix_status_t (*removeWiringProxy)(wiring_topology_manager_pt manager, wiring_handle handle);
 
 };

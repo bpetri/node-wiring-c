@@ -11,6 +11,8 @@
 #include <string.h>
 #include <uuid/uuid.h>
 
+#include <properties.h>
+
 #include "curl/curl.h"
 
 #include "wiring_admin_impl.h"
@@ -57,18 +59,11 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		char *detectedIp = NULL;
 		(*admin)->context = context;
 
-		char* fwuuid = NULL;
-		if (((bundleContext_getProperty((*admin)->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
-			printf("WA: Could not retrieve framework UUID!\n");
-			free(*admin);
-			return CELIX_ILLEGAL_STATE;
-		}
 
 		properties_pt props = properties_create();
 		properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
-		properties_set(props, WIRING_ENDPOINT_DESCRIPTION_USER_KEY, WIRING_ENDPOINT_USER_VALUE);
 
-		if (wiringEndpointDescription_create(fwuuid, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
+		if (wiringEndpointDescription_create(NULL, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
 			printf("WA: Could not create our own WiringEndpointDescription!\n");
 			free(*admin);
 			return CELIX_ENOMEM;
@@ -129,23 +124,28 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 			}
 		} while (((*admin)->ctx == NULL) && (port_counter < MAX_NUMBER_OF_RESTARTS));
 
-		(*admin)->wEndpointDescription->url = calloc(MAX_URL_LENGTH, sizeof(*(*admin)->wEndpointDescription->url));
+		char* url = calloc(MAX_URL_LENGTH, sizeof(*url));
 
 		if (ip != NULL) {
-			snprintf((*admin)->wEndpointDescription->url, MAX_URL_LENGTH, "http://%s:%s", ip, port);
+			snprintf(url, MAX_URL_LENGTH, "http://%s:%s", ip, port);
 		} else {
 			printf("WA: No IP address for HTTP Wiring Endpint set. Using %s\n", DEFAULT_WA_ADDRESS);
-			snprintf((*admin)->wEndpointDescription->url, MAX_URL_LENGTH, "http://%s:%s", (char*) DEFAULT_WA_ADDRESS, port);
+			snprintf(url, MAX_URL_LENGTH, "http://%s:%s", (char*) DEFAULT_WA_ADDRESS, port);
 		}
 
 		if (status == CELIX_SUCCESS) {
-			printf("WA: HTTP Wiring Endpoint running at %s\n", (*admin)->wEndpointDescription->url);
+			printf("WA: HTTP Wiring Endpoint running at %s\n", url);
+			properties_set((*admin)->wEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_URL_KEY, url);
 		} else {
-			printf("WA: Cannot activate HTTP Wiring Endpoint at %s\n", (*admin)->wEndpointDescription->url);
+			printf("WA: Cannot activate HTTP Wiring Endpoint at %s\n", url);
 		}
 
 		if (detectedIp != NULL) {
 			free(detectedIp);
+		}
+
+		if (url != NULL) {
+			free(url);
 		}
 	}
 
@@ -177,7 +177,8 @@ celix_status_t wiringAdmin_stop(wiring_admin_pt admin) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	if (admin->ctx != NULL) {
-		printf("WA: Stopping HTTP Wiring Endpoint running at %s ...\n", admin->wEndpointDescription->url);
+		char* url = properties_get(admin->wEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_URL_KEY);
+		printf("WA: Stopping HTTP Wiring Endpoint running at %s ...\n", url);
 		mg_stop(admin->ctx);
 		admin->ctx = NULL;
 	}
@@ -325,9 +326,7 @@ celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *reque
 	get.size = 0;
 	get.writeptr = malloc(1);
 
-	char url[256];
-	memset(url, 0, 256);
-	snprintf(url, 256, "http://%s", wepd->url);
+	char* url = properties_get(wepd->properties, WIRING_ENDPOINT_DESCRIPTION_URL_KEY);
 
 	CURL *curl;
 	CURLcode res;
@@ -336,7 +335,7 @@ celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *reque
 	if (!curl) {
 		status = CELIX_ILLEGAL_STATE;
 	} else {
-		curl_easy_setopt(curl, CURLOPT_URL, &url[0]);
+		curl_easy_setopt(curl, CURLOPT_URL, url);
 		curl_easy_setopt(curl, CURLOPT_POST, 1L);
 		curl_easy_setopt(curl, CURLOPT_READFUNCTION, wiringAdmin_HTTPReqReadCallback);
 		curl_easy_setopt(curl, CURLOPT_READDATA, &post);

@@ -10,7 +10,7 @@
 #include "node_description_impl.h"
 #include "wiring_endpoint_description.h"
 
-celix_status_t nodeDescription_create(char* nodeId, properties_pt properties, node_description_pt *nodeDescription) {
+celix_status_t nodeDescription_create(char* nodeId, char* zoneId,  properties_pt properties, node_description_pt *nodeDescription) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	*nodeDescription = calloc(1, sizeof(struct node_description));
@@ -23,6 +23,12 @@ celix_status_t nodeDescription_create(char* nodeId, properties_pt properties, no
 
 	if (nodeId != NULL) {
 		(*nodeDescription)->nodeId = strdup(nodeId);
+	} else {
+		(*nodeDescription)->nodeId = NULL;
+	}
+
+	if (zoneId != NULL) {
+		(*nodeDescription)->nodeId = strdup(zoneId);
 	} else {
 		(*nodeDescription)->nodeId = NULL;
 	}

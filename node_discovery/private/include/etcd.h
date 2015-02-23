@@ -8,8 +8,7 @@
 #include <stdbool.h>
 
 
-#define MAX_PROTOCOLS		16
-#define MAX_USERS			256
+#define MAX_WIRES			256
 #define MAX_NODES			256
 #define MAX_ZONES			64
 
@@ -28,10 +27,6 @@
 #define ETCD_JSON_VALUE			"value"
 #define ETCD_JSON_MODIFIEDINDEX	"modifiedIndex"
 
-
-#define ETCD_KEY_SUFFIX_COMPLETE 		"complete"
-#define ETCD_KEY_SUFFIX_URL		 		"url"
-#define ETCD_KEY_SUFFIX_METADATA		"metadata"
 
 
 

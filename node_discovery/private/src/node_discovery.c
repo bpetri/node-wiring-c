@@ -30,29 +30,26 @@
 static celix_status_t node_discovery_createOwnNodeDescription(node_discovery_pt node_discovery, node_description_pt* node_description) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	char* fwuuid = NULL;
 	char* inZoneIdentifier = NULL;
 	char* inNodeIdentifier = NULL;
-
-	if (((bundleContext_getProperty(node_discovery->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
-		status = CELIX_ILLEGAL_STATE;
-	}
 
 	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_ZONE_IDENTIFIER, &inZoneIdentifier)) != CELIX_SUCCESS) || (!inZoneIdentifier)) {
 		inZoneIdentifier = (char*) NODE_DISCOVERY_DEFAULT_ZONE_IDENTIFIER;
 	}
 
 	if (((bundleContext_getProperty(node_discovery->context, NODE_DISCOVERY_NODE_IDENTIFIER, &inNodeIdentifier)) != CELIX_SUCCESS) || (!inNodeIdentifier)) {
-		inNodeIdentifier = fwuuid;
+		char* fwuuid = NULL;
+
+		if (((bundleContext_getProperty(node_discovery->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid)) != CELIX_SUCCESS) || (!fwuuid)) {
+			status = CELIX_ILLEGAL_STATE;
+		} else {
+			inNodeIdentifier = fwuuid;
+		}
 	}
 
 	if (status == CELIX_SUCCESS) {
-
 		properties_pt props = properties_create();
-		properties_set(props, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY, inNodeIdentifier);
-		properties_set(props, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY, inZoneIdentifier);
-
-		nodeDescription_create(fwuuid, props, node_description);
+		nodeDescription_create(inNodeIdentifier, inZoneIdentifier, props, node_description);
 	}
 
 	return status;
@@ -75,7 +72,6 @@ celix_status_t node_discovery_create(bundle_context_pt context, node_discovery_p
 		status = celixThreadMutex_create(&(*node_discovery)->ownNodeMutex, NULL);
 
 		node_discovery_createOwnNodeDescription((*node_discovery), &(*node_discovery)->ownNode);
-
 	}
 
 	return status;
@@ -125,10 +121,6 @@ celix_status_t node_discovery_start(node_discovery_pt node_discovery) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	status = etcdWatcher_create(node_discovery, node_discovery->context, &node_discovery->watcher);
-
-	if (status != CELIX_SUCCESS) {
-		status = CELIX_BUNDLE_EXCEPTION;
-	}
 
 	return status;
 }
@@ -181,6 +173,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 		printf("\nNODE_DISCOVERY: Node %s added\n", key);
 		//dump_node_description(node_desc);
 	}
+
 	celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
 
 	celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
@@ -188,6 +181,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 	array_list_iterator_pt wep_it = arrayListIterator_create(node_desc->wiring_ep_descriptions_list);
 
 	while (arrayListIterator_hasNext(wep_it)) {
+		// TODO check for already known wiring endpoints
 		wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
 		node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
 	}
@@ -287,13 +281,6 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 	node_discovery_pt node_discovery = handle;
 
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
-
-	// Wiring Endpoint Description added by WTM must have the same UUID as the local frameworkUUID
-	if (strcmp(wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId) != 0) {
-		printf("NODE_DISCOVERY: WEPListener service trying to add WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n", wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId);
-		status = CELIX_ILLEGAL_STATE;
-	}
-
 	celixThreadMutex_lock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
 
 	array_list_iterator_pt wep_it = arrayListIterator_create(node_discovery->ownNode->wiring_ep_descriptions_list);
@@ -302,8 +289,8 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 		wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
 
 		// Trying to add twice the same Wiring Endpoint Description should never happen!!
-		if (!strcmp(wEndpoint->url, wep->url)) {
-			printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_url=%s)\n", wEndpoint->url);
+		if (!strcmp(wEndpoint->wireId, wep->wireId)) {
+			printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_uuid=%s)\n", wEndpoint->wireId);
 			status = CELIX_ILLEGAL_STATE;
 		}
 	}
@@ -325,23 +312,15 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt node_discovery = handle;
-
-	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
-
-	// Wiring Endpoint Description removed by WTM must have the same UUID as the local frameworkUUID
-	if (strcmp(wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId) != 0) {
-		printf("NODE_DISCOVERY: WEPListener service trying to remove WEPDescription with wrong UUID (wep_uuid=%s,local_uuid=%s)\n", wEndpoint->frameworkUUID, node_discovery->ownNode->nodeId);
-		status = CELIX_ILLEGAL_STATE;
-	}
-
 	int i = 0;
 
+	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
 	celixThreadMutex_lock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
 
 	for (; i < arrayList_size(node_discovery->ownNode->wiring_ep_descriptions_list); i++) {
 		wiring_endpoint_description_pt wep = arrayList_get(node_discovery->ownNode->wiring_ep_descriptions_list, i);
 
-		if (!strcmp(wEndpoint->url, wep->url)) {
+		if (!strcmp(wEndpoint->wireId, wep->wireId)) {
 			wep = arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list, i);
 			//wiringEndpointDescription_destroy(wep);
 			break;

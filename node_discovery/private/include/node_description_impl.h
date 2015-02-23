@@ -13,6 +13,8 @@
 
 struct node_description {
     char *nodeId;
+    char *zoneId;
+
     celix_thread_mutex_t wiring_ep_desc_list_lock;
     array_list_pt wiring_ep_descriptions_list;
     properties_pt properties;

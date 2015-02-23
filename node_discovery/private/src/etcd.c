@@ -158,7 +158,7 @@ bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 		if (js_zones != NULL && json_is_array(js_zones)) {
 			int i = 0;
 
-			for (i = 0; i < json_array_size(js_zones) && i < MAX_ZONES; i++) {
+			for (i = 0; i < json_array_size(js_zones) && i < MAX_ZONES; ++i) {
 				json_t* js_zone = json_array_get(js_zones, i);
 				json_t* js_nodes = NULL;
 
@@ -169,48 +169,38 @@ bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 				if (js_nodes != NULL && json_is_array(js_nodes)) {
 					int j = 0;
 
-					for (j = 0; j < json_array_size(js_nodes) && j < MAX_NODES; j++) {
+					for (j = 0; j < json_array_size(js_nodes) && j < MAX_NODES; ++j) {
 						json_t* js_node = json_array_get(js_nodes, j);
-						json_t* js_users = NULL;
+						json_t* js_wires = NULL;
 
 						if (js_node != NULL) {
-							js_users = json_object_get(js_node, ETCD_JSON_NODES);
+							js_wires = json_object_get(js_node, ETCD_JSON_NODES);
 						}
 
-						if (js_users != NULL && json_is_array(js_users)) {
+						if (js_wires != NULL && json_is_array(js_wires)) {
 							int k = 0;
+							int l = 0;
 
-							for (k = 0; k < json_array_size(js_users) && k < MAX_USERS; k++) {
-								json_t* js_user = json_array_get(js_users, k);
-								json_t* js_protocols = NULL;
+							for (k = 0; k < json_array_size(js_wires) && k < MAX_WIRES; ++k) {
+								json_t* js_user = json_array_get(js_wires, k);
 
-								if (js_user != NULL) {
-									js_protocols = json_object_get(js_user, ETCD_JSON_NODES);
-								}
+								if (json_is_object(js_user)) {
+									retVal = true;
+									json_t* js_key = json_object_get(js_user, ETCD_JSON_KEY);
 
-								if (js_protocols != NULL && json_is_array(js_protocols)) {
-									int l = 0;
-
-									for (l = 0; l < json_array_size(js_protocols) && l < MAX_PROTOCOLS; l++) {
-										json_t* js_protocol = json_array_get(js_protocols, l);
-
-										if (json_is_object(js_protocol)) {
-											retVal = true;
-											json_t* js_key = json_object_get(js_protocol, ETCD_JSON_KEY);
-
-											strncpy(endpoints[i], json_string_value(js_key), MAX_KEY_LENGTH);
-										}
-									}
-									*size = i;
+									strncpy(endpoints[i], json_string_value(js_key), MAX_KEY_LENGTH);
+									++l;
 								}
 							}
+
+							*size = l;
 						}
 					}
 				}
 			}
-			if (js_root != NULL) {
-				json_decref(js_root);
-			}
+		}
+		if (js_root != NULL) {
+			json_decref(js_root);
 		}
 	}
 

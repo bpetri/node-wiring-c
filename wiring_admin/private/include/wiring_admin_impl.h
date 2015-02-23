@@ -17,8 +17,8 @@
 #include "wiring_admin.h"
 
 /* We are the HTTP Wiring Admin, so out ep_protocol is HTTP */
-#define WIRING_ENDPOINT_PROTOCOL_VALUE 		"inaetics-http;version=1.0"
-#define WIRING_ENDPOINT_USER_VALUE 			"wiring-admin"
+#define WIRING_ENDPOINT_PROTOCOL_VALUE 			"inaetics-http;version=1.0"
+
 
 struct wiring_admin {
 	bundle_context_pt context;

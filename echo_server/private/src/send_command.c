@@ -47,8 +47,12 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 	status = bundleContext_getServiceReference(command->bundleContext, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, &wtmServiceRef);
 
 	if (status == CELIX_SUCCESS && wtmServiceRef != NULL) {
+		void* service = NULL;
 		wiring_topology_manager_service_pt wtmService = NULL;
-		bundleContext_getService(command->bundleContext, wtmServiceRef, &wtmService);
+
+		if (bundleContext_getService(command->bundleContext, wtmServiceRef, service) == CELIX_SUCCESS) {
+			wtmService = (wiring_topology_manager_service_pt) service;
+		}
 
 		// if the dereferenced instance is null then we know the service has been removed
 		if (wtmService != NULL) {
@@ -73,9 +77,7 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 
 			printf("ECHO_SERVER: Try to send \"%s\" to %s..\n", msg, wireId);
 
-			properties_set(someProperties, WIRING_ENDPOINT_DESCRIPTION_UUID_KEY, wireId);
-
-			if (wtmService->getWiringProxy(wtmService->manager, someProperties, &admin, &sendFunc, &handle) == CELIX_SUCCESS) {
+			if (wtmService->getWiringProxy(wtmService->manager, wireId, &admin, &sendFunc, &handle) == CELIX_SUCCESS) {
 				char* response = calloc(500, sizeof(*response));
 				int replyStatus;
 				printf("ECHO_SERVER: Wiring Proxy successfully retrieved\n");
