@@ -17,9 +17,9 @@ void exportCommand_execute(command_pt command, char *line, void (*out)(char *), 
 
 celix_status_t echo_callback(char* data, char**response) {
 	celix_status_t status = CELIX_SUCCESS;
-
-	printf("ECHO_SERVER: echo_callback called.\n");
-	printf("ECHO_SERVER: received data: %s\n", data);
+	*response = calloc(500, sizeof(char));
+	printf("ECHO_SERVER: data received: %s\n", data);
+	snprintf(*response, 500, "echo %s echo", data);
 
 	return status;
 }

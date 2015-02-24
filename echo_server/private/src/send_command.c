@@ -67,6 +67,8 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 				// TODO: JSON WRAPPER
 
 				sendFunc(admin, handle, msg, &response, &replyStatus);
+				printf("ECHO_SERVER: Reply was: %s\n", response);
+
 			} else {
 				printf("ECHO_SERVER: Retrieval of Wiring Proxy failed\n");
 			}
