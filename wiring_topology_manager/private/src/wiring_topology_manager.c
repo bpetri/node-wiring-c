@@ -529,7 +529,6 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(w
 		bool matchResult = false;
 		filter_match(filter, wEndpoint->properties, &matchResult);
 
-		// FIXME: This prevents us from announcing our own Endpoints.
 		if (matchResult) {
 			status = wepl->wiringEndpointAdded(wepl->handle, wEndpoint, scope);
 		}
