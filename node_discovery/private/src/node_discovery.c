@@ -280,7 +280,6 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
 			if (matchResult) {
 				bundleContext_getService(node_discovery->context, reference, (void**) &listener);
 				if (wEndpointAdded) {
-
 					listener->wiringEndpointAdded(listener->handle, wEndpoint, scope);
 				} else {
 					listener->wiringEndpointRemoved(listener->handle, wEndpoint, scope);

@@ -295,7 +295,7 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 
 			/* Check if we already have a WiringAdmin able to communicate with the imported wiring endpoint */
 			printf("WTM: Check for Wa\n");
-			if ((wa_wepd == NULL))
+			if (wa_wepd == NULL)
 				printf("WAS IS NULL\n");
 
 			if ((wa_wepd != NULL) && (properties_match(wa_wepd->properties, wEndpoint->properties) == true)) {
@@ -321,8 +321,27 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 
 	status = celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 
-	if (hashMap_remove(manager->importedWiringEndpoints, wEndpoint) != NULL) {
-		printf("WTM: Removing imported wiring endpoint (%s).\n", wEndpoint->wireId);
+	hash_map_iterator_pt iter = hashMapIterator_create(manager->importedWiringEndpoints);
+	bool found = false;
+
+	while (hashMapIterator_hasNext(iter) && found == false) {
+		wiring_endpoint_description_pt wepd = hashMapIterator_nextKey(iter);
+
+		if (strcmp(wepd->wireId, wEndpoint->wireId) == 0) {
+			char* wireId = strdup(wepd->wireId);
+			found = true;
+			if (hashMap_remove(manager->importedWiringEndpoints, wepd) != NULL) {
+				printf("WTM: Removing imported wiring endpoint (%s).\n", wireId);
+			} else {
+				printf("WTM: Removing of imported wiring endpoint (%s) failed.\n", wireId);
+			}
+
+			free(wireId);
+		}
+	}
+
+	if (!found) {
+		printf("WTM: Could not find wiring endpoint (%s) .\n", wEndpoint->wireId);
 	}
 
 	status = celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
