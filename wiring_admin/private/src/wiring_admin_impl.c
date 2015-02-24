@@ -60,14 +60,6 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 		(*admin)->context = context;
 
 
-		properties_pt props = properties_create();
-		properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
-
-		if (wiringEndpointDescription_create(NULL, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
-			printf("WA: Could not create our own WiringEndpointDescription!\n");
-			free(*admin);
-			return CELIX_ENOMEM;
-		}
 
 		celixThreadMutex_create(&(*admin)->exportedWiringEndpointFunctionLock, NULL);
 
@@ -135,7 +127,17 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 
 		if (status == CELIX_SUCCESS) {
 			printf("WA: HTTP Wiring Endpoint running at %s\n", url);
-			properties_set((*admin)->wEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_URL_KEY, url);
+
+			properties_pt props = properties_create();
+			properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
+			properties_set(props, WIRING_ENDPOINT_DESCRIPTION_URL_KEY, url);
+
+			if (wiringEndpointDescription_create(NULL, props, &((*admin)->wEndpointDescription)) != CELIX_SUCCESS) {
+				printf("WA: Could not create our own WiringEndpointDescription!\n");
+				free(*admin);
+				return CELIX_ENOMEM;
+			}
+
 		} else {
 			printf("WA: Cannot activate HTTP Wiring Endpoint at %s\n", url);
 		}

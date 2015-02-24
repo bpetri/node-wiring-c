@@ -60,17 +60,12 @@ static celix_status_t etcdWatcher_getLocalNodePath(bundle_context_pt context, no
 	celix_status_t status = CELIX_SUCCESS;
 	char rootPath[MAX_ROOTNODE_LENGTH];
 
-	char* zoneId = properties_get(ownNodeDescription->properties, NODE_DESCRIPTION_ZONE_IDENTIFIER_KEY);
-	char* nodeId = properties_get(ownNodeDescription->properties, NODE_DESCRIPTION_NODE_IDENTIFIER_KEY);
-
-	if (zoneId == NULL || nodeId == NULL) {
-		status = CELIX_ILLEGAL_STATE;
-	} else if ((etcdWatcher_getRootPath(context, &rootPath[0]) != CELIX_SUCCESS)) {
+	if ((etcdWatcher_getRootPath(context, &rootPath[0]) != CELIX_SUCCESS)) {
 		status = CELIX_ILLEGAL_STATE;
 	} else if (rootPath[strlen(&rootPath[0]) - 1] == '/') {
-		snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s%s/%s", &rootPath[0], zoneId, nodeId);
+		snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s%s/%s", &rootPath[0], ownNodeDescription->zoneId, ownNodeDescription->nodeId);
 	} else {
-		snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s/%s/%s", &rootPath[0], zoneId, nodeId);
+		snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s/%s/%s", &rootPath[0], ownNodeDescription->zoneId, ownNodeDescription->nodeId);
 	}
 
 	return status;
@@ -161,7 +156,7 @@ celix_status_t etcdWatcher_addOwnNode(etcd_watcher_pt watcher) {
 
 			wiringEndpoint_properties_store(wiringEndpointDesc->properties, &etcdValue[0]);
 
-			snprintf(etcdKey, MAX_LOCALNODE_LENGTH, "%s/%s/%s/%s", localNodePath, ownNodeDescription->zoneId, ownNodeDescription->nodeId, wiringEndpointDesc->wireId);
+			snprintf(etcdKey, MAX_LOCALNODE_LENGTH, "%s/%s", localNodePath, wiringEndpointDesc->wireId);
 
 			// TODO : implement update
 			etcd_set(etcdKey, etcdValue, ttl, false);
@@ -279,6 +274,9 @@ static void* etcdWatcher_run(void* data) {
 		// update own framework uuid
 		if (time(NULL) - timeBeforeWatch > (DEFAULT_ETCD_TTL / 2)) {
 			etcdWatcher_addOwnNode(watcher);
+
+			// perform additional full-sync
+			etcdWatcher_addAlreadyExistingNodes(node_discovery, &highestModified);
 			timeBeforeWatch = time(NULL);
 		}
 	}

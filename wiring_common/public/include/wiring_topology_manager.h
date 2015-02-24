@@ -23,7 +23,6 @@ struct wiring_topology_manager_service {
 
 	celix_status_t (*getWiringProxy)(wiring_topology_manager_pt manager, char* wireId, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle);
 	celix_status_t (*removeWiringProxy)(wiring_topology_manager_pt manager, wiring_handle handle);
-
 };
 
 typedef struct wiring_topology_manager_service *wiring_topology_manager_service_pt;

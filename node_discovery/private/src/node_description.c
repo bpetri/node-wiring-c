@@ -28,9 +28,9 @@ celix_status_t nodeDescription_create(char* nodeId, char* zoneId,  properties_pt
 	}
 
 	if (zoneId != NULL) {
-		(*nodeDescription)->nodeId = strdup(zoneId);
+		(*nodeDescription)->zoneId= strdup(zoneId);
 	} else {
-		(*nodeDescription)->nodeId = NULL;
+		(*nodeDescription)->zoneId  = NULL;
 	}
 
 	arrayList_create(&((*nodeDescription)->wiring_ep_descriptions_list));

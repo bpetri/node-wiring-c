@@ -13,11 +13,17 @@
 
 #include "command_impl.h"
 #include "send_command.h"
+#include "export_command.h"
+
 
 struct echoActivator {
 	service_registration_pt sendCommand;
 	command_pt sendCmd;
 	command_service_pt sendCmdSrv;
+
+	service_registration_pt exportCommand;
+	command_pt exportCmd;
+	command_service_pt exportCmdSrv;
 };
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
@@ -56,6 +62,10 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	activator->sendCmd = sendCommand_create(context);
 	echoServer_createCommandService(activator->sendCmd, &activator->sendCmdSrv);
 	bundleContext_registerService(context, (char *) OSGI_SHELL_COMMAND_SERVICE_NAME, activator->sendCmdSrv, NULL, &activator->sendCommand);
+
+	activator->exportCmd = exportCommand_create(context);
+	echoServer_createCommandService(activator->exportCmd, &activator->exportCmdSrv);
+	bundleContext_registerService(context, (char *) OSGI_SHELL_COMMAND_SERVICE_NAME, activator->exportCmdSrv, NULL, &activator->exportCommand);
 
 	return status;
 }

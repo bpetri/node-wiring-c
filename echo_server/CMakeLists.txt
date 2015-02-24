@@ -17,6 +17,7 @@ SET(BUNDLE_NAME "org.inaetics.wiring_echoServer")
 bundle(org.inaetics.wiring_echoServer SOURCES
 	private/src/activator.c
 	private/src/send_command.c
+	private/src/export_command.c
 	${CELIX_DIR}/share/celix/shell/command.c
 )
 

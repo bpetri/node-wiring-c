@@ -131,8 +131,6 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	activator->wiringTopologyManagerService = wiringTopologyManagerService;
 
-	memset(scope,0,len+1);
-
 	snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
 	//printf("WTM: Wiring Topology Manager scope is %s\n", scope);

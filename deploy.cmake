@@ -13,6 +13,7 @@ deploy("wiring_2" BUNDLES
    org.inaetics.node_discovery.etcd.NodeDiscovery
    org.inaetics.wiring_topology_manager.WiringTopologyManager
    org.inaetics.wiring_admin.WiringAdmin
+   org.inaetics.wiring_echoServer
 )
 
 deploy("node_discovery_etcd" BUNDLES

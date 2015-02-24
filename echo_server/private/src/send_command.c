@@ -15,15 +15,6 @@
 
 void sendCommand_execute(command_pt command, char *line, void (*out)(char *), void (*err)(char *)) ;
 
-celix_status_t echo_callback(char* data, char**response) {
-	celix_status_t status = CELIX_SUCCESS;
-
-	printf("ECHO_SERVER: echo_callback called.\n");
-	printf("ECHO_SERVER: received data: %s\n", data);
-
-	return status;
-}
-
 command_pt sendCommand_create(bundle_context_pt context) {
     command_pt command = (command_pt) calloc(1, sizeof(struct command));
     if (command) {
@@ -50,14 +41,12 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 		void* service = NULL;
 		wiring_topology_manager_service_pt wtmService = NULL;
 
-		if (bundleContext_getService(command->bundleContext, wtmServiceRef, service) == CELIX_SUCCESS) {
+		if (bundleContext_getService(command->bundleContext, wtmServiceRef, &service) == CELIX_SUCCESS) {
 			wtmService = (wiring_topology_manager_service_pt) service;
 		}
 
 		// if the dereferenced instance is null then we know the service has been removed
 		if (wtmService != NULL) {
-			properties_pt someProperties = properties_create();
-
 			wiring_admin_pt admin = NULL;
 			rsa_inaetics_send sendFunc = NULL;
 			wiring_handle handle = NULL;
@@ -67,13 +56,6 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 
 			char* wireId = strtok_r(NULL, " ", &token);
 			char* msg = strtok_r(NULL, " ", &token);
-
-
-			if (wtmService->installCallbackToWiringEndpoint(wtmService->manager, someProperties, echo_callback) == CELIX_SUCCESS) {
-				printf("ECHO_SERVER: Callback sucessfully installed\n");
-			} else {
-				printf("ECHO_SERVER: Installation of Callback failed\n");
-			}
 
 			printf("ECHO_SERVER: Try to send \"%s\" to %s..\n", msg, wireId);
 

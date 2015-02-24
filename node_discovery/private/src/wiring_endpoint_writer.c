@@ -15,8 +15,6 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 
 	celix_status_t status = CELIX_SUCCESS;
 
-	char key[WIRING_ENDPOINT_PROP_MAX_KEY_LENGTH];
-	char value[WIRING_ENDPOINT_PROP_MAX_VALUE_LENGTH];
 
 	char * const end = outStr + MAX_VALUE_LENGTH;
 
@@ -24,6 +22,10 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 		hash_map_iterator_pt iterator = hashMapIterator_create(properties);
 		while (hashMapIterator_hasNext(iterator)) {
 			hash_map_entry_pt entry = hashMapIterator_nextEntry(iterator);
+
+			char key[WIRING_ENDPOINT_PROP_MAX_KEY_LENGTH];
+			char value[WIRING_ENDPOINT_PROP_MAX_VALUE_LENGTH];
+
 			char* keyStr = NULL;
 			char* valStr = NULL;
 			int keyLen = -1;
@@ -45,7 +47,7 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 
 				key[j] = keyStr[i];
 			}
-			key[++j] = '\0';
+			key[j] = '\0';
 
 			for (i = 0, j = 0; i < valLen; ++i, ++j) {
 				if (valStr[i] == '#' || valStr[i] == '!' || valStr[i] == '=' || valStr[i] == ':') {
@@ -53,9 +55,9 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 					++j;
 				}
 
-				value[j] = valStr[j];
+				value[j] = valStr[i];
 			}
-			value[++j] = '\0';
+			value[j] = '\0';
 
 			outStr += snprintf(outStr, end - outStr, "%s=%s\n", key, value);
 		}

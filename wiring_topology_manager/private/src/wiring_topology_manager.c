@@ -273,7 +273,6 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 		array_list_pt localWAs = NULL;
 		wiringTopologyManager_getWAs(manager, &localWAs);
 
-
 		wiring_admin_service_pt matching_wa = NULL;
 
 		int size = arrayList_size(localWAs);
@@ -299,7 +298,6 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 			if ((wa_wepd == NULL))
 				printf("WAS IS NULL\n");
 
-
 			if ((wa_wepd != NULL) && (properties_match(wa_wepd->properties, wEndpoint->properties) == true)) {
 				matching_wa = wa;
 				printf("WTM: Imported WiringEndpoint matches with local WA %s. Associating them...\n", wa_wepd->wireId);
@@ -309,7 +307,6 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 		}
 
 		hashMap_put(manager->importedWiringEndpoints, wEndpoint, matching_wa);
-
 		arrayList_destroy(localWAs);
 	}
 
@@ -449,7 +446,6 @@ celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_
 celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager, char* wireId, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle) {
 	celix_status_t status = CELIX_ILLEGAL_STATE;
 
-
 	if (wireId == NULL) {
 		printf("WTM: No Wire UUID specified. Cannot look for a proper WiringProxy.\n");
 		return CELIX_ILLEGAL_ARGUMENT;
@@ -458,8 +454,10 @@ celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt m
 	celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 	hash_map_iterator_pt iter = hashMapIterator_create(manager->importedWiringEndpoints);
 	while (hashMapIterator_hasNext(iter)) {
-		wiring_endpoint_description_pt wepd = hashMapIterator_nextKey(iter);
-		wiring_admin_service_pt wa = hashMapIterator_nextValue(iter);
+		hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
+		wiring_endpoint_description_pt wepd = hashMapEntry_getKey(entry);
+		wiring_admin_service_pt wa = hashMapEntry_getValue(entry);
+
 		/* If we are aware of such a node asked by RSA_Inaetics... */
 		if (strcmp(wepd->wireId, wireId) == 0) {
 			/* ... and we have a valid WiringProxy */
@@ -530,6 +528,8 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(w
 
 		bool matchResult = false;
 		filter_match(filter, wEndpoint->properties, &matchResult);
+
+		// FIXME: This prevents us from announcing our own Endpoints.
 		if (matchResult) {
 			status = wepl->wiringEndpointAdded(wepl->handle, wEndpoint, scope);
 		}
