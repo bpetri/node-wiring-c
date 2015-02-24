@@ -82,7 +82,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	wiring_endpoint_listener_pt wEndpointListener;
 	struct activator *activator = userData;
 	char *uuid = NULL;
-	char* scope = NULL;
+
 
 	status = bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
 
@@ -93,10 +93,11 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
 
-	scope = calloc(len + 1, sizeof(char));
 	wEndpointListener = calloc(1, sizeof(struct wiring_endpoint_listener));
 
-	if (wEndpointListener && scope) {
+	if (wEndpointListener) {
+		char scope[len+1];
+
 		sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
 		wEndpointListener->handle = activator->node_discovery;
@@ -107,8 +108,6 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 		properties_pt props = properties_create();
 		properties_set(props, "NODE_DISCOVERY", "true");
 		properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
-
-		free(scope);
 
 		status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 

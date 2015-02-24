@@ -6,9 +6,6 @@
 #ifndef NODE_DESCRIPTION_H_
 #define NODE_DESCRIPTION_H_
 
-#define NODE_DESCRIPTION_WA_ADDRESS_IDENTIFIER_KEY	"inaetics.node.wa.address"
-#define NODE_DESCRIPTION_WA_PORT_IDENTIFIER_KEY		"inaetics.node.wa.port"
-
 typedef struct node_description *node_description_pt;
 
 celix_status_t nodeDescription_create(char* nodeId, char* zoneId, properties_pt properties,node_description_pt *nodeDescription);

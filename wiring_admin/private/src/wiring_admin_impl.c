@@ -125,7 +125,6 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 
 		if (status == CELIX_SUCCESS) {
 			char* fwuuid = NULL;
-			properties_pt props = NULL;
 
 			status = bundleContext_getProperty((*admin)->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid);
 
@@ -136,7 +135,7 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY, WIRING_ENDPOINT_PROTOCOL_VALUE);
 				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_URL_KEY, url);
 
-				properties_set(props, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, fwuuid);
+				properties_set(props, (char*) OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, fwuuid);
 
 				status = wiringEndpointDescription_create(NULL, props, &((*admin)->wEndpointDescription));
 			}

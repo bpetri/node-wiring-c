@@ -63,19 +63,12 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			}
 
 			size_t len = 14 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-			char *scope = calloc(len+1,sizeof(char));
-			if (!scope) {
-				return CELIX_ENOMEM;
-			}
+			char scope[len+1];
 
 			snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-			//printf("WA: Wiring Endpoint Listener scope is %s\n", scope);
-
 			properties_pt props = properties_create();
 			properties_set(props, (char *) INAETICS_WIRING_ADMIN_SCOPE, scope);
-
-			free(scope);
 
 
 			status = bundleContext_registerService(context, (char*)INAETICS_WIRING_ADMIN, activator->wiringAdminService, props, &activator->registration);
