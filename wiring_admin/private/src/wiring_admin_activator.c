@@ -56,22 +56,21 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			activator->wiringAdminService->removeImportedWiringEndpoint = wiringAdmin_removeImportedWiringEndpoint;
 
 			char *uuid = NULL;
-			status = bundleContext_getProperty(activator->context, (char *)OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
-			if (!uuid) {
+			status = bundleContext_getProperty(activator->context, (char *) OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
+
+			if (status != CELIX_SUCCESS) {
 				printf("WA: no framework UUID defined?!\n");
-				return CELIX_ILLEGAL_STATE;
+			} else {
+				size_t len = 14 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
+				char scope[len + 1];
+
+				snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+
+				properties_pt props = properties_create();
+				properties_set(props, (char *) INAETICS_WIRING_ADMIN_SCOPE, scope);
+
+				status = bundleContext_registerService(context, (char*) INAETICS_WIRING_ADMIN, activator->wiringAdminService, props, &activator->registration);
 			}
-
-			size_t len = 14 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-			char scope[len+1];
-
-			snprintf(scope, len, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
-
-			properties_pt props = properties_create();
-			properties_set(props, (char *) INAETICS_WIRING_ADMIN_SCOPE, scope);
-
-
-			status = bundleContext_registerService(context, (char*)INAETICS_WIRING_ADMIN, activator->wiringAdminService, props, &activator->registration);
 		}
 	}
 
@@ -89,7 +88,6 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	free(activator->wiringAdminService);
 	activator->wiringAdminService = NULL;
 
-
 	return status;
 }
 
@@ -103,5 +101,4 @@ celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt contex
 
 	return status;
 }
-
 

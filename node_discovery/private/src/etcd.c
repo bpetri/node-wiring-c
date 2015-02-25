@@ -221,7 +221,7 @@ bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 	bool retVal = false;
 	char url[MAX_URL_LENGTH];
 	char request[MAX_CONTENT_LENGTH];
-	char* cur = request;
+	char* requestPtr = request;
 	int res;
 	struct MemoryStruct reply;
 
@@ -229,13 +229,15 @@ bool etcd_set(char* key, char* value, int ttl, bool prevExist) {
 	reply.size = 0; /* no data at this point */
 
 	snprintf(url, MAX_URL_LENGTH, "http://%s:%d/v2/keys/%s", etcd_server, etcd_port, key);
-	cur += snprintf(cur, MAX_CONTENT_LENGTH, "value=%s", value);
+	requestPtr += snprintf(requestPtr, MAX_CONTENT_LENGTH, "value=%s", value);
 
-	if (ttl > 0)
-		cur += snprintf(cur, MAX_CONTENT_LENGTH, ";ttl=%d", ttl);
+	if (ttl > 0) {
+		requestPtr += snprintf(requestPtr, MAX_CONTENT_LENGTH, ";ttl=%d", ttl);
+	}
 
-	if (prevExist)
-		cur += snprintf(cur, MAX_CONTENT_LENGTH, ";prevExist=true");
+	if (prevExist) {
+		requestPtr += snprintf(requestPtr, MAX_CONTENT_LENGTH, ";prevExist=true");
+	}
 
 	res = performRequest(url, PUT, WriteMemoryCallback, request, (void*) &reply);
 

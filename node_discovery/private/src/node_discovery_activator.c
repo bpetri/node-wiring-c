@@ -31,12 +31,8 @@ static celix_status_t createWiringEndpointListenerTracker(struct activator *acti
 
 	service_tracker_customizer_pt customizer = NULL;
 
-	status = serviceTrackerCustomizer_create(activator->node_discovery,
-				node_discovery_wiringEndpointListenerAdding,
-				node_discovery_wiringEndpointListenerAdded,
-				node_discovery_wiringEndpointListenerModified,
-				node_discovery_wiringEndpointListenerRemoved,
-				&customizer);
+	status = serviceTrackerCustomizer_create(activator->node_discovery, node_discovery_wiringEndpointListenerAdding, node_discovery_wiringEndpointListenerAdded, node_discovery_wiringEndpointListenerModified,
+			node_discovery_wiringEndpointListenerRemoved, &customizer);
 
 	if (status == CELIX_SUCCESS) {
 		status = serviceTracker_create(activator->context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
@@ -64,12 +60,10 @@ celix_status_t bundleActivator_create(bundle_context_pt context, void **userData
 
 		if (status == CELIX_SUCCESS) {
 			*userData = activator;
-		}
-		else {
+		} else {
 			free(activator);
 		}
-	}
-	else {
+	} else {
 		status = CELIX_ENOMEM;
 	}
 
@@ -79,48 +73,44 @@ celix_status_t bundleActivator_create(bundle_context_pt context, void **userData
 
 celix_status_t bundleActivator_start(void * userData, bundle_context_pt context) {
 	celix_status_t status = CELIX_SUCCESS;
-	wiring_endpoint_listener_pt wEndpointListener;
+
 	struct activator *activator = userData;
 	char *uuid = NULL;
 
-
 	status = bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
 
-	if (!uuid) {
+	if (status != CELIX_SUCCESS) {
 		printf("NODE_DISCOVERY: no framework UUID defined?!\n");
-		return CELIX_ILLEGAL_STATE;
-	}
+	} else {
+		size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
+		wiring_endpoint_listener_pt wEndpointListener = calloc(1, sizeof(struct wiring_endpoint_listener));
 
-	size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
+		if (wEndpointListener) {
+			char scope[len + 1];
 
-	wEndpointListener = calloc(1, sizeof(struct wiring_endpoint_listener));
+			sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
-	if (wEndpointListener) {
-		char scope[len+1];
+			wEndpointListener->handle = activator->node_discovery;
+			wEndpointListener->wiringEndpointAdded = node_discovery_wiringEndpointAdded;
+			wEndpointListener->wiringEndpointRemoved = node_discovery_wiringEndpointRemoved;
+			activator->wiringEndpointListener = wEndpointListener;
 
-		sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+			properties_pt props = properties_create();
+			properties_set(props, "NODE_DISCOVERY", "true");
+			properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
-		wEndpointListener->handle = activator->node_discovery;
-		wEndpointListener->wiringEndpointAdded = node_discovery_wiringEndpointAdded;
-		wEndpointListener->wiringEndpointRemoved = node_discovery_wiringEndpointRemoved;
-		activator->wiringEndpointListener = wEndpointListener;
+			status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 
-		properties_pt props = properties_create();
-		properties_set(props, "NODE_DISCOVERY", "true");
-		properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+			if (status == CELIX_SUCCESS) {
+				status = serviceTracker_open(activator->wiringEndpointListenerTracker);
+			}
 
-		status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
-
-		if (status == CELIX_SUCCESS) {
-			status = serviceTracker_open(activator->wiringEndpointListenerTracker);
+			if (status == CELIX_SUCCESS) {
+				status = node_discovery_start(activator->node_discovery);
+			}
+		} else {
+			status = CELIX_ENOMEM;
 		}
-
-		if (status == CELIX_SUCCESS) {
-			status = node_discovery_start(activator->node_discovery);
-		}
-	}
-	else {
-		status = CELIX_ENOMEM;
 	}
 
 	return status;
@@ -130,17 +120,14 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	celix_status_t status = CELIX_SUCCESS;
 	struct activator *activator = userData;
 
+	node_discovery_stop(activator->node_discovery);
 
-
-	status = node_discovery_stop(activator->node_discovery);
-
-	status = serviceTracker_close(activator->wiringEndpointListenerTracker);
-	status = serviceRegistration_unregister(activator->wiringEndpointListenerService);
+	serviceTracker_close(activator->wiringEndpointListenerTracker);
+	serviceRegistration_unregister(activator->wiringEndpointListenerService);
 
 	if (status == CELIX_SUCCESS) {
 		free(activator->wiringEndpointListener);
 	}
-
 
 	return status;
 }
@@ -149,9 +136,8 @@ celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt contex
 	celix_status_t status = CELIX_SUCCESS;
 	struct activator *activator = userData;
 
-	status = serviceTracker_destroy(activator->wiringEndpointListenerTracker);
-
-	status = node_discovery_destroy(activator->node_discovery);
+	serviceTracker_destroy(activator->wiringEndpointListenerTracker);
+	node_discovery_destroy(activator->node_discovery);
 
 	activator->wiringEndpointListener = NULL;
 	activator->wiringEndpointListenerService = NULL;

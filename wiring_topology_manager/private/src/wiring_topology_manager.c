@@ -283,16 +283,6 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 			wiring_endpoint_description_pt wa_wepd = NULL;
 			wa->getWiringEndpoint(wa->admin, &wa_wepd);
 
-			/*
-			 if(wa_wepd!=NULL){
-			 wiringEndpointDescription_dump(wa_wepd);
-			 }
-
-			 if(wEndpoint!=NULL){
-			 wiringEndpointDescription_dump(wEndpoint);
-			 }
-			 */
-
 			/* Check if we already have a WiringAdmin able to communicate with the imported wiring endpoint */
 			printf("WTM: Check for Wa\n");
 			if (wa_wepd == NULL)
