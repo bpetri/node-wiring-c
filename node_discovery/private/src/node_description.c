@@ -46,6 +46,10 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription, bool
 		free(nodeDescription->nodeId);
 	}
 
+	if (nodeDescription->zoneId != NULL) {
+		free(nodeDescription->zoneId);
+	}
+
 	if (nodeDescription->properties != NULL) {
 		properties_destroy(nodeDescription->properties);
 	}

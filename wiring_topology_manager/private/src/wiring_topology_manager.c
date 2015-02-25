@@ -330,6 +330,8 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 		}
 	}
 
+	hashMapIterator_destroy(iter);
+
 	if (!found) {
 		printf("WTM: Could not find wiring endpoint (%s) .\n", wEndpoint->wireId);
 	}
