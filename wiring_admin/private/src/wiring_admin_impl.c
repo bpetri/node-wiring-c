@@ -136,6 +136,7 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VERSION_KEY, WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VERSION_VALUE);
 				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_SECURE_KEY, WIRING_ENDPOINT_DESCRIPTION_SECURE_VALUE);
 				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_NAME_KEY, WIRING_ENDPOINT_DESCRIPTION_NAME_VALUE);
+				properties_set(props, WIRING_ENDPOINT_DESCRIPTION_URL_KEY, url);
 
 				properties_set(props, (char*) OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, fwuuid);
 
