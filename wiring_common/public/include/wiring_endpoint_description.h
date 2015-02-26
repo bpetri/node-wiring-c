@@ -9,7 +9,6 @@
 #include "array_list.h"
 #include "remote_constants.h"
 
-#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY				"ep_url"
 
 struct wiring_endpoint_description {
 	char* wireId;

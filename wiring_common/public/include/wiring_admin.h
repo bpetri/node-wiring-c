@@ -19,12 +19,16 @@ static const char * const INAETICS_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 #define NODE_DISCOVERY_NODE_WA_PORT		"NODE_DISCOVERY_NODE_WA_PORT"
 #define NODE_DISCOVERY_NODE_WA_ITF 		"NODE_DISCOVERY_NODE_WA_ITF"
 
-#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY 		"ep_protocol"
+#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY 			"wire.protocol.name"
+#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VERSION_KEY	"wire.protocol.version"
+#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY					"wire.inaetics-http.url"
+#define WIRING_ENDPOINT_DESCRIPTION_NAME_KEY				"wire.name"
+#define WIRING_ENDPOINT_DESCRIPTION_SECURE_KEY				"wire.secure"
 
 typedef struct wiring_admin *wiring_admin_pt;
 
 typedef celix_status_t (*rsa_inaetics_receive_cb)(char* data, char**response);
-typedef celix_status_t (*rsa_inaetics_send)(wiring_admin_pt admin,void* handle, char *request, char **reply, int* replyStatus);
+typedef celix_status_t (*rsa_inaetics_send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus);
 
 typedef void* wiring_handle;
 
@@ -33,14 +37,13 @@ struct wiring_admin_service {
 
 	celix_status_t (*exportWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
 	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
-	celix_status_t (*getWiringEndpoint)(wiring_admin_pt admin,wiring_endpoint_description_pt* wEndpoint);
+	celix_status_t (*getWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpoint);
 
-	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint,rsa_inaetics_send* sendFunc,wiring_handle* handle);
+	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint, rsa_inaetics_send* sendFunc, wiring_handle* handle);
 	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, wiring_handle handle);
 
 };
 
 typedef struct wiring_admin_service *wiring_admin_service_pt;
-
 
 #endif /* WIRING_ADMIN_H_ */

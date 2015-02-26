@@ -40,7 +40,7 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 			valLen = strlen(valStr);
 
 			for (i = 0, j = 0; i < keyLen && i < WIRING_ENDPOINT_PROP_MAX_KEY_LENGTH; ++i, ++j) {
-				if (keyStr[i] == '#' || keyStr[i] == '!' || keyStr[i] == '=' || keyStr[i] == ':') {
+				if (keyStr[i] == '#' || keyStr[i] == '!' || keyStr[i] == '=' ) {
 					key[j] = '\\';
 					++j;
 				}
@@ -50,7 +50,7 @@ celix_status_t wiringEndpoint_properties_store(properties_pt properties, char* o
 			key[j] = '\0';
 
 			for (i = 0, j = 0; i < valLen; ++i, ++j) {
-				if (valStr[i] == '#' || valStr[i] == '!' || valStr[i] == '=' || valStr[i] == ':') {
+				if (valStr[i] == '#' || valStr[i] == '!' || valStr[i] == '=' ) {
 					value[j] = '\\';
 					++j;
 				}

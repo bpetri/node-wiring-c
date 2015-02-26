@@ -310,32 +310,13 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, 
 	wiring_topology_manager_pt manager = handle;
 
 	status = celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
+	char* wireId = strdup(wEndpoint->wireId);
 
-	hash_map_iterator_pt iter = hashMapIterator_create(manager->importedWiringEndpoints);
-	bool found = false;
-
-	while (hashMapIterator_hasNext(iter) && found == false) {
-		wiring_endpoint_description_pt wepd = hashMapIterator_nextKey(iter);
-
-		if (strcmp(wepd->wireId, wEndpoint->wireId) == 0) {
-			char* wireId = strdup(wepd->wireId);
-			found = true;
-			if (hashMap_remove(manager->importedWiringEndpoints, wepd) != NULL) {
-				printf("WTM: Removing imported wiring endpoint (%s).\n", wireId);
-			} else {
-				printf("WTM: Removing of imported wiring endpoint (%s) failed.\n", wireId);
-			}
-
-			free(wireId);
-		}
+	if (hashMap_remove(manager->importedWiringEndpoints, wEndpoint) != NULL) {
+		printf("WTM: Removing imported wiring endpoint (%s).\n", wireId);
+	} else {
+		printf("WTM: Removing of imported wiring endpoint (%s) failed.\n", wireId);
 	}
-
-	hashMapIterator_destroy(iter);
-
-	if (!found) {
-		printf("WTM: Could not find wiring endpoint (%s) .\n", wEndpoint->wireId);
-	}
-
 	status = celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
 
 	//TODO: Notify RSA_Inaetics communicating with the removed imported WiringEndpoint
