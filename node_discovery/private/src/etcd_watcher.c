@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "celix_log.h"
 #include "constants.h"
@@ -269,6 +270,10 @@ static void* etcdWatcher_run(void* data) {
 				fw_log(logger, OSGI_FRAMEWORK_LOG_INFO, "Unexpected action: %s", action);
 			}
 			highestModified++;
+		}
+		/* prevent busy waiting, in case etcd_watch returns false */
+		else if (time(NULL) - timeBeforeWatch <= (DEFAULT_ETCD_TTL / 2)) {
+			sleep(DEFAULT_ETCD_TTL / 2);
 		}
 
 		// update own framework uuid
