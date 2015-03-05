@@ -139,6 +139,8 @@ bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 	reply.memory = malloc(1); /* will be grown as needed by the realloc above */
 	reply.size = 0; /* no data at this point */
 
+	*size = 0;
+
 	bool retVal = false;
 	char url[MAX_URL_LENGTH];
 
@@ -181,7 +183,6 @@ bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 
 						if (js_wires != NULL && json_is_array(js_wires)) {
 							int k = 0;
-							int l = 0;
 
 							for (k = 0; k < json_array_size(js_wires) && k < MAX_WIRES; ++k) {
 								json_t* js_user = json_array_get(js_wires, k);
@@ -189,13 +190,10 @@ bool etcd_getEndpoints(char* directory, char** endpoints, int* size) {
 								if (json_is_object(js_user)) {
 									retVal = true;
 									json_t* js_key = json_object_get(js_user, ETCD_JSON_KEY);
-
-									strncpy(endpoints[i], json_string_value(js_key), MAX_KEY_LENGTH);
-									++l;
+									strncpy(endpoints[*size], json_string_value(js_key), MAX_KEY_LENGTH);
+									++(*size);
 								}
 							}
-
-							*size = l;
 						}
 					}
 				}
