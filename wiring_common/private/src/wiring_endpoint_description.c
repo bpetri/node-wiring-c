@@ -48,18 +48,19 @@ celix_status_t wiringEndpointDescription_create(char* wireId, properties_pt prop
 	return status;
 }
 
-celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt description) {
+celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt *description) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	if (description->wireId != NULL) {
-		free(description->wireId);
+	if ((*description)->wireId != NULL) {
+		free((*description)->wireId);
 	}
 
-	if (description->properties != NULL) {
-		properties_destroy(description->properties);
+	if ((*description)->properties != NULL) {
+		properties_destroy((*description)->properties);
 	}
 
-	free(description);
+	free(*description);
+	*description = NULL;
 
 	return status;
 }

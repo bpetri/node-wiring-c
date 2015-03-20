@@ -22,11 +22,10 @@ celix_status_t wiringTopologyManager_waRemoved(void *handle, service_reference_p
 celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 
-celix_status_t wiringTopologyManager_installCallbackToWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties, rsa_inaetics_receive_cb rsa_inaetics_cb);
-celix_status_t wiringTopologyManager_uninstallCallbackFromWiringEndpoint(wiring_topology_manager_pt manager, rsa_inaetics_receive_cb rsa_inaetics_cb);
+celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
 
-celix_status_t wiringTopologyManager_getWiringProxy(wiring_topology_manager_pt manager, char* wireId, wiring_admin_pt* admin,rsa_inaetics_send* sendFunc,wiring_handle* handle);
-celix_status_t wiringTopologyManager_removeWiringProxy(wiring_topology_manager_pt manager, wiring_handle handle);
+celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
+celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
 
 
 

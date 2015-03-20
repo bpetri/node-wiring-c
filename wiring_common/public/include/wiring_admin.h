@@ -6,6 +6,7 @@
 #define WIRING_ADMIN_H_
 
 #include "wiring_endpoint_listener.h"
+
 #include "celix_errno.h"
 
 static const char * const INAETICS_WIRING_ADMIN = "wiring_admin";
@@ -19,31 +20,37 @@ static const char * const INAETICS_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 #define NODE_DISCOVERY_NODE_WA_PORT		"NODE_DISCOVERY_NODE_WA_PORT"
 #define NODE_DISCOVERY_NODE_WA_ITF 		"NODE_DISCOVERY_NODE_WA_ITF"
 
-#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_KEY 			"wire.protocol.name"
-#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VERSION_KEY	"wire.protocol.version"
-#define WIRING_ENDPOINT_DESCRIPTION_URL_KEY					"wire.inaetics-http.url"
-#define WIRING_ENDPOINT_DESCRIPTION_NAME_KEY				"wire.name"
-#define WIRING_ENDPOINT_DESCRIPTION_SECURE_KEY				"wire.secure"
+#define WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY			"inaetics.wiring.id"
+#define WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY		"inaetics.wiring.http.url"
+
+#define WIRING_ADMIN_PROPERTIES_CONFIG_KEY 				"inaetics.wiring.config"
+#define WIRING_ADMIN_PROPERTIES_SECURE_KEY 				"inaetics.wiring.secure"
 
 typedef struct wiring_admin *wiring_admin_pt;
-
-typedef celix_status_t (*rsa_inaetics_receive_cb)(char* data, char**response);
-typedef celix_status_t (*rsa_inaetics_send)(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus);
-
-typedef void* wiring_handle;
 
 struct wiring_admin_service {
 	wiring_admin_pt admin;
 
-	celix_status_t (*exportWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
-	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
-	celix_status_t (*getWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpoint);
+	celix_status_t (*exportWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpoint);
+	celix_status_t (*removeExportedWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint);
+	celix_status_t (*getWiringAdminProperties)(wiring_admin_pt admin, properties_pt* admin_properties);
 
-	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint, rsa_inaetics_send* sendFunc, wiring_handle* handle);
-	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, wiring_handle handle);
+	celix_status_t (*importWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint);
+	celix_status_t (*removeImportedWiringEndpoint)(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpoint);
 
 };
 
 typedef struct wiring_admin_service *wiring_admin_service_pt;
+
+static const char * const INAETICS_WIRING_SEND_SERVICE = "wiring_send";
+static const char * const INAETICS_WIRING_WIRE_ID = "wire.id";
+
+typedef struct wiring_send_service *wiring_send_service_pt;
+
+struct wiring_send_service {
+	wiring_admin_pt admin;
+	wiring_endpoint_description_pt wiringEndpointDescription;
+	celix_status_t (*send)(wiring_send_service_pt sendService, char *request, char **reply, int* replyStatus);
+};
 
 #endif /* WIRING_ADMIN_H_ */

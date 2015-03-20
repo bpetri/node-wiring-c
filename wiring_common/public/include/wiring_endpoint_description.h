@@ -18,7 +18,7 @@ struct wiring_endpoint_description {
 typedef struct wiring_endpoint_description *wiring_endpoint_description_pt;
 
 celix_status_t wiringEndpointDescription_create(char* wireId, properties_pt properties, wiring_endpoint_description_pt *wiringEndpointDescription);
-celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt description);
+celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt *description);
 void wiringEndpointDescription_dump(wiring_endpoint_description_pt description);
 unsigned int wiringEndpointDescription_hash(void* description);
 int wiringEndpointDescription_equals(void* description1, void* description2);

@@ -16,22 +16,28 @@
 
 #include "wiring_admin.h"
 
-/* We are the HTTP Wiring Admin, so out ep_protocol is HTTP */
-#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VALUE 					"inaetics-http"
-#define WIRING_ENDPOINT_DESCRIPTION_SECURE_VALUE 					"no"
-#define WIRING_ENDPOINT_DESCRIPTION_PROTOCOL_VERSION_VALUE 			"1.0"
-#define WIRING_ENDPOINT_DESCRIPTION_NAME_VALUE 						"wiringadmin"
+#define MAX_URL_LENGTH 			128
+
+//#define WIRING_ENDPOINT_DESCRIPTION_CONFIG_VALUE		"inaetics.wiring.http"
+
+#define WIRING_ADMIN_PROPERTIES_CONFIG_VALUE		"inaetics.wiring.http"
+#define WIRING_ADMIN_PROPERTIES_SECURE_VALUE 		"no"
 
 struct wiring_admin {
 	bundle_context_pt context;
 
-	celix_thread_mutex_t exportedWiringEndpointFunctionLock;
-	celix_status_t (*rsa_inetics_callback)(char* data, char**response);
+	celix_thread_mutex_t exportedWiringEndpointLock;
+	celix_thread_mutex_t importedWiringEndpointLock;
 
-	wiring_endpoint_description_pt wEndpointDescription;
+	properties_pt adminProperties;
 
-	celix_thread_mutex_t wiringProxiesLock;
-	hash_map_pt wiringProxies; //key=void*, value=wiring_proxy_registration_pt
+	hash_map_pt wiringSendServices; //key=wiring_endpoint_desc,  value=services
+	hash_map_pt wiringSendRegistrations; //key=wiring_endpoint_desc,  value=serviceRegistrations
+
+	hash_map_pt wiringReceiveServices; //key=wiring_endpoint_desc,  value=services
+	hash_map_pt wiringReceiveTracker; //key=wiring_endpoint_desc,  value=tracker
+
+	char url[MAX_URL_LENGTH];
 
 	struct mg_context *ctx;
 };
@@ -47,12 +53,11 @@ celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *ad
 celix_status_t wiringAdmin_destroy(wiring_admin_pt* admin);
 celix_status_t wiringAdmin_stop(wiring_admin_pt admin);
 
-celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
-celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, rsa_inaetics_receive_cb rsa_inaetics_cb);
-celix_status_t wiringAdmin_getWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpoint);
+celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt* wEndpointDescription);
+celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription);
+celix_status_t wiringAdmin_getWiringAdminProperties(wiring_admin_pt admin, properties_pt *adminProperties);
 
-celix_status_t wiringAdmin_send(wiring_admin_pt admin, void* handle, char *request, char **reply, int* replyStatus);
-celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt endpoint, rsa_inaetics_send* sendFunc, wiring_handle* handle);
-celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, wiring_handle handle);
+celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription);
+celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, wiring_endpoint_description_pt wEndpointDescription);
 
 #endif /* WIRING_ADMIN_IMPL_H_ */

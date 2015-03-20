@@ -15,7 +15,6 @@
 #include "wiring_admin.h"
 #include "remote_constants.h"
 
-
 struct activator {
 	bundle_context_pt context;
 
@@ -30,9 +29,7 @@ struct activator {
 	service_registration_pt wiringTopologyManagerServiceRegistration;
 };
 
-
 static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *activator, service_tracker_pt *tracker);
-
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -70,26 +67,24 @@ static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *
 
 	service_tracker_customizer_pt customizer = NULL;
 
-	status = serviceTrackerCustomizer_create(activator->manager, wiringTopologyManager_waAdding,
-			wiringTopologyManager_waAdded, wiringTopologyManager_waModified, wiringTopologyManager_waRemoved, &customizer);
+	status = serviceTrackerCustomizer_create(activator->manager, wiringTopologyManager_waAdding, wiringTopologyManager_waAdded, wiringTopologyManager_waModified, wiringTopologyManager_waRemoved, &customizer);
 
 	if (status == CELIX_SUCCESS) {
-		status = serviceTracker_create(activator->context, (char*)INAETICS_WIRING_ADMIN, customizer, tracker);
+		status = serviceTracker_create(activator->context, (char*) INAETICS_WIRING_ADMIN, customizer, tracker);
 	}
 
 	return status;
 }
-
 
 celix_status_t bundleActivator_start(void * userData, bundle_context_pt context) {
 	celix_status_t status = CELIX_SUCCESS;
 	struct activator *activator = userData;
 
 	/* Wiring Endpoint Listener Service Creation and Registration */
-	wiring_endpoint_listener_pt wEndpointListener = malloc(sizeof(*wEndpointListener));
-	if(wEndpointListener==NULL){
+	wiring_endpoint_listener_pt wEndpointListener = calloc(1, sizeof(*wEndpointListener));
+	if (wEndpointListener == NULL) {
 		serviceTracker_destroy(activator->inaeticsWiringAdminTracker);
-		bundleActivator_destroy(userData,context);
+		bundleActivator_destroy(userData, context);
 		return CELIX_ENOMEM;
 	}
 	wEndpointListener->handle = activator->manager;
@@ -98,14 +93,14 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	activator->wiringEndpointListener = wEndpointListener;
 
 	char *uuid = NULL;
-	status = bundleContext_getProperty(activator->context, (char *)OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
+	status = bundleContext_getProperty(activator->context, (char *) OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
 	if (!uuid) {
 		printf("WTM: no framework UUID defined?!\n");
 		return CELIX_ILLEGAL_STATE;
 	}
 
 	size_t len = 14 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-	char scope[len+1];
+	char scope[len + 1];
 
 	snprintf(scope, len, "(!(%s=%s))", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
 
@@ -114,14 +109,17 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 	bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 
-
 	/* Wiring Topology Manager Service Creation and Registration */
-	wiring_topology_manager_service_pt wiringTopologyManagerService = malloc(sizeof(*wiringTopologyManagerService));
+	wiring_topology_manager_service_pt wiringTopologyManagerService = calloc(1, sizeof(*wiringTopologyManagerService));
 	wiringTopologyManagerService->manager = activator->manager;
-	wiringTopologyManagerService->installCallbackToWiringEndpoint = wiringTopologyManager_installCallbackToWiringEndpoint;
-	wiringTopologyManagerService->uninstallCallbackFromWiringEndpoint = wiringTopologyManager_uninstallCallbackFromWiringEndpoint;
-	wiringTopologyManagerService->getWiringProxy = wiringTopologyManager_getWiringProxy;
-	wiringTopologyManagerService->removeWiringProxy = wiringTopologyManager_removeWiringProxy;
+	wiringTopologyManagerService->exportWiringEndpoint = wiringTopologyManager_exportWiringEndpoint;
+	wiringTopologyManagerService->importWiringEndpoint = wiringTopologyManager_importWiringEndpoint;
+
+	/*
+	 * TODO:
+	 * wiringTopologyManagerService->removeExportedWiringEndpoint = wiringTopologyManager_removeExportedWiringEndpoint;
+	 * wiringTopologyManagerService->removeImportedWiringEndpoint = wiringTopologyManager_removeImportedWiringEndpoint;
+	*/
 
 	activator->wiringTopologyManagerService = wiringTopologyManagerService;
 
@@ -144,7 +142,6 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	serviceTracker_close(activator->inaeticsWiringAdminTracker);
 	serviceTracker_destroy(activator->inaeticsWiringAdminTracker);
 
-
 	serviceRegistration_unregister(activator->wiringEndpointListenerService);
 	free(activator->wiringEndpointListener);
 
@@ -160,8 +157,7 @@ celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt contex
 	struct activator *activator = userData;
 	if (!activator || !activator->manager) {
 		status = CELIX_BUNDLE_EXCEPTION;
-	}
-	else {
+	} else {
 		status = wiringTopologyManager_destroy(activator->manager);
 		free(activator);
 	}

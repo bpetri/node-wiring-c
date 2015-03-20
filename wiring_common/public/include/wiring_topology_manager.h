@@ -18,11 +18,12 @@ typedef struct wiring_topology_manager* wiring_topology_manager_pt;
 struct wiring_topology_manager_service {
 	wiring_topology_manager_pt manager;
 
-	celix_status_t (*installCallbackToWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties, rsa_inaetics_receive_cb rsa_inaetics_cb);
-	celix_status_t (*uninstallCallbackFromWiringEndpoint)(wiring_topology_manager_pt manager, rsa_inaetics_receive_cb rsa_inaetics_cb);
+	celix_status_t (*exportWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties);
+	celix_status_t (*removeExportedWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties, char** wireId);
 
-	celix_status_t (*getWiringProxy)(wiring_topology_manager_pt manager, char* wireId, wiring_admin_pt* admin, rsa_inaetics_send* sendFunc, wiring_handle* handle);
-	celix_status_t (*removeWiringProxy)(wiring_topology_manager_pt manager, wiring_handle handle);
+	celix_status_t (*importWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties);
+	celix_status_t (*removeImportedWiringEndpoint)(wiring_topology_manager_pt manager,properties_pt properties, char** wireId);
+
 };
 
 typedef struct wiring_topology_manager_service *wiring_topology_manager_service_pt;

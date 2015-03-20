@@ -6,8 +6,19 @@
 #define SEND_COMMAND_H_
 
 #include "command_impl.h"
+#include "service_tracker.h"
+#include "hash_map.h"
 
-command_pt sendCommand_create(bundle_context_pt context);
+#define MAX_REPLY_LENGTH	5000
+
+struct send_command {
+	service_tracker_pt sendServicesTracker;
+	hash_map_pt sendServices;
+};
+
+typedef struct send_command *send_command_pt;
+
+celix_status_t sendCommand_create(bundle_context_pt context, command_pt* command);
 void sendCommand_destroy(command_pt command);
 
 #endif /* SEND_COMMAND_H_ */

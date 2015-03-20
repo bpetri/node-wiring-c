@@ -64,7 +64,7 @@ celix_status_t nodeDescription_destroy(node_description_pt nodeDescription, bool
 
 			while (arrayListIterator_hasNext(ep_it)) {
 				wiring_endpoint_description_pt wep_desc = arrayListIterator_next(ep_it);
-				wiringEndpointDescription_destroy(wep_desc);
+				wiringEndpointDescription_destroy(&wep_desc);
 			}
 
 			arrayListIterator_destroy(ep_it);

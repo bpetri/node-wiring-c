@@ -50,7 +50,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 			activator->wiringAdminService->exportWiringEndpoint = wiringAdmin_exportWiringEndpoint;
 			activator->wiringAdminService->removeExportedWiringEndpoint = wiringAdmin_removeExportedWiringEndpoint;
-			activator->wiringAdminService->getWiringEndpoint = wiringAdmin_getWiringEndpoint;
+			activator->wiringAdminService->getWiringAdminProperties = wiringAdmin_getWiringAdminProperties;
 
 			activator->wiringAdminService->importWiringEndpoint = wiringAdmin_importWiringEndpoint;
 			activator->wiringAdminService->removeImportedWiringEndpoint = wiringAdmin_removeImportedWiringEndpoint;
