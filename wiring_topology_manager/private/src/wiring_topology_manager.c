@@ -278,7 +278,7 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceImportWiringEndpoi
 }
 
 /* Functions for wiring endpoint listener */
-celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
+celix_status_t wiringTopologyManager_WiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
 	celix_status_t status = CELIX_SUCCESS;
 	wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
 	wiring_topology_manager_pt manager = (wiring_topology_manager_pt) listener->handle;
@@ -297,7 +297,7 @@ celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wir
 	return status;
 }
 
-celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
+celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
 	celix_status_t status = CELIX_SUCCESS;
 	wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
 	wiring_topology_manager_pt manager = (wiring_topology_manager_pt) listener->handle;
@@ -341,7 +341,7 @@ static bool properties_match(properties_pt properties, properties_pt reference) 
 		char* prop_key = (char*) hashMapEntry_getKey(prop_pair);
 		char* prop_value = (char*) hashMapEntry_getValue(prop_pair);
 
-		printf("check prop %s\n", prop_key);
+		printf("WTM: check prop %s\n", prop_key);
 
 		/*OSGI_RSA_ENDPOINT_FRAMEWORK_UUID (endpoint.framework.uuid) is a special property that shouldn't be taken in account*/
 		if (strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0) {
@@ -350,7 +350,7 @@ static bool properties_match(properties_pt properties, properties_pt reference) 
 
 		char* ref_value = (char*) hashMap_get(reference, prop_key);
 		if (ref_value == NULL || (strcmp(ref_value, prop_value) != 0)) {
-			printf("comparisionn of  val %s against %s failed s\n", ref_value, prop_value);
+			printf("WTM: comparison of  val %s against %s failed s\n", ref_value, prop_value);
 			matching = false; // We found a pair in properties not included in reference
 		}
 	}
@@ -428,6 +428,41 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 	return status;
 }
 
+celix_status_t wiringTopologyManager_removeExportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties) {
+	celix_status_t status = CELIX_SUCCESS;
+
+	if (properties == NULL) {
+		status = CELIX_ILLEGAL_ARGUMENT;
+	} else {
+		celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
+
+		hash_map_pt wiringAdminList = hashMap_remove(manager->exportedWiringEndpoints, properties);
+
+		if (wiringAdminList != NULL) {
+			hash_map_iterator_pt wiringAdminIter = hashMapIterator_create(wiringAdminList);
+
+			while ((hashMapIterator_hasNext(wiringAdminIter) == true) && (status == CELIX_SUCCESS)) {
+				hash_map_entry_pt wiringAdminEntry = hashMapIterator_nextEntry(wiringAdminIter);
+
+				wiring_admin_service_pt wiringAdminService = hashMapEntry_getKey(wiringAdminEntry);
+				wiring_endpoint_description_pt wEndpoint = hashMapEntry_getValue(wiringAdminEntry);
+
+				if (wiringAdminService->removeExportedWiringEndpoint(wiringAdminService->admin, wEndpoint) != CELIX_SUCCESS) {
+					status = CELIX_BUNDLE_EXCEPTION;
+				}
+			}
+
+			hashMapIterator_destroy(wiringAdminIter);
+		} else {
+			status = CELIX_ILLEGAL_STATE;
+		}
+
+		celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
+	}
+
+	return status;
+}
+
 celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manager_pt manager, properties_pt rsaProperties) {
 	celix_status_t status = CELIX_SUCCESS;
 	hash_map_iterator_pt iter = NULL;
@@ -465,6 +500,44 @@ celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manage
 			arrayList_destroy(localWAs);
 		} else {
 			printf("WTM: rsaProperties do not match imported Endpoint\n");
+		}
+	}
+
+	hashMapIterator_destroy(iter);
+	celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
+
+	return status;
+}
+
+celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties) {
+	celix_status_t status = CELIX_SUCCESS;
+	hash_map_iterator_pt iter = NULL;
+
+	celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
+	iter = hashMapIterator_create(manager->importedWiringEndpoints);
+
+	while (hashMapIterator_hasNext(iter)) {
+		hash_map_entry_pt importedWiringEndpointEntry = (hash_map_entry_pt) hashMapIterator_nextEntry(iter);
+		wiring_endpoint_description_pt wiringEndpointDesc = (wiring_endpoint_description_pt) hashMapEntry_getKey(importedWiringEndpointEntry);
+		array_list_pt wiringAdminList = (array_list_pt) hashMapEntry_getValue(importedWiringEndpointEntry);
+
+		// do we have a matching wiring endpoint
+		if (properties_match(properties, wiringEndpointDesc->properties)) {
+
+			int listCnt = 0;
+			int listSize = arrayList_size(wiringAdminList);
+
+			for (; listCnt < listSize; ++listCnt) {
+				wiring_admin_service_pt wiringAdminService = (wiring_admin_service_pt) arrayList_remove(wiringAdminList, listCnt);
+
+				if (wiringAdminService->removeImportedWiringEndpoint(wiringAdminService->admin, wiringEndpointDesc) != CELIX_SUCCESS) {
+					status = CELIX_BUNDLE_EXCEPTION;
+				}
+			}
+
+			printf("WTM: imported wiring endpoint %s removed\n", wiringEndpointDesc->wireId);
+		} else {
+			printf("WTM: given properties do not match imported Endpoint\n");
 		}
 	}
 

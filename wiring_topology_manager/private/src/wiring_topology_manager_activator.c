@@ -88,8 +88,8 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 		return CELIX_ENOMEM;
 	}
 	wEndpointListener->handle = activator->manager;
-	wEndpointListener->wiringEndpointAdded = wiringTopologyManager_addImportedWiringEndpoint;
-	wEndpointListener->wiringEndpointRemoved = wiringTopologyManager_removeImportedWiringEndpoint;
+	wEndpointListener->wiringEndpointAdded = wiringTopologyManager_WiringEndpointAdded;
+	wEndpointListener->wiringEndpointRemoved = wiringTopologyManager_WiringEndpointRemoved;
 	activator->wiringEndpointListener = wEndpointListener;
 
 	char *uuid = NULL;
@@ -113,13 +113,9 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 	wiring_topology_manager_service_pt wiringTopologyManagerService = calloc(1, sizeof(*wiringTopologyManagerService));
 	wiringTopologyManagerService->manager = activator->manager;
 	wiringTopologyManagerService->exportWiringEndpoint = wiringTopologyManager_exportWiringEndpoint;
+	wiringTopologyManagerService->removeExportedWiringEndpoint = wiringTopologyManager_removeExportedWiringEndpoint;
 	wiringTopologyManagerService->importWiringEndpoint = wiringTopologyManager_importWiringEndpoint;
-
-	/*
-	 * TODO:
-	 * wiringTopologyManagerService->removeExportedWiringEndpoint = wiringTopologyManager_removeExportedWiringEndpoint;
-	 * wiringTopologyManagerService->removeImportedWiringEndpoint = wiringTopologyManager_removeImportedWiringEndpoint;
-	*/
+	wiringTopologyManagerService->removeImportedWiringEndpoint = wiringTopologyManager_removeImportedWiringEndpoint;
 
 	activator->wiringTopologyManagerService = wiringTopologyManagerService;
 

@@ -19,14 +19,14 @@ celix_status_t wiringTopologyManager_waAdded(void *handle, service_reference_pt 
 celix_status_t wiringTopologyManager_waModified(void *handle, service_reference_pt reference, void *service);
 celix_status_t wiringTopologyManager_waRemoved(void *handle, service_reference_pt reference, void *service);
 
-celix_status_t wiringTopologyManager_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
-celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
+celix_status_t wiringTopologyManager_WiringEndpointAdded(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
+celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 
 celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
+celix_status_t wiringTopologyManager_removeExportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
 
 celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
-celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
-
+celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
 
 
 #endif /* WIRING_TOPOLOGY_MANAGER_IMPL_H_ */

@@ -181,12 +181,12 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 					send_command_pt sendCommand = (send_command_pt) command->handle;
 					wiring_send_service_pt wiringSendService = NULL;
 
-					printf("ECHO_SERVER: importWiringEndpoint successfully executed\n");
+					printf("ECHO_SERVER: importWiringEndpoint successfully executed.\n");
 
 					wiringSendService = hashMap_get(sendCommand->sendServices, wireId);
 
 					if (wiringSendService == NULL) {
-						printf("ECHO_SERVER: No matching SendService found\n");
+						printf("ECHO_SERVER: No matching SendService found.\n");
 					} else {
 
 						char* reply = NULL;
@@ -197,8 +197,14 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 						printf("ECHO_SERVER: %s received\n", reply);
 					}
 
+					if (wtmService->removeImportedWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
+						printf("ECHO_SERVER: removeImportWiringEndpoint successfully executed.\n");
+					} else {
+						printf("ECHO_SERVER: removeImportWiringEndpoint failed.\n");
+					}
+
 				} else {
-					printf("ECHO_SERVER: importWiringEndpoint failed while executing\n");
+					printf("ECHO_SERVER: importWiringEndpoint failed.\n");
 				}
 
 				properties_destroy(rsaProperties);
