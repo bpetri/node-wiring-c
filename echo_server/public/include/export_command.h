@@ -10,10 +10,7 @@
 #include "service_registration.h"
 #include "command_impl.h"
 
-#define WIREID_LENGTH	32
-
 static const char * const INAETICS_WIRING_RECEIVE_SERVICE = "wiring_receive";
-
 
 struct wiring_receive_service {
 	char* wireId;

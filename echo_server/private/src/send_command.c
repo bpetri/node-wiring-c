@@ -162,55 +162,56 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 
 		// if the dereferenced instance is null then we know the service has been removed
 		if (wtmService != NULL) {
-			char *token;
+			char wireId[WIREID_LENGTH];
+			char msg[MSG_LENGTH];
 
-			strtok_r(line, " ", &token);
+			if (sscanf(line, "send %s %s", &wireId[0], &msg[0]) == 2) {
+				printf("ECHO_SERVER: Try to send \"%s\" to %s..\n", msg, wireId);
 
-			char* wireId = strtok_r(NULL, " ", &token);
-			char* msg = strtok_r(NULL, " ", &token);
+				status = sendCommand_createSendServiceTracker(command, wireId);
 
-			printf("ECHO_SERVER: Try to send \"%s\" to %s..\n", msg, wireId);
-			status = sendCommand_createSendServiceTracker(command, wireId);
+				if (status == CELIX_SUCCESS) {
+					properties_pt rsaProperties = properties_create();
 
-			if (status == CELIX_SUCCESS) {
-				properties_pt rsaProperties = properties_create();
+					properties_set(rsaProperties, "inaetics.wiring.id", wireId);
 
-				properties_set(rsaProperties, "inaetics.wiring.id", wireId);
+					if (wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
+						send_command_pt sendCommand = (send_command_pt) command->handle;
+						wiring_send_service_pt wiringSendService = NULL;
 
-				if (wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
-					send_command_pt sendCommand = (send_command_pt) command->handle;
-					wiring_send_service_pt wiringSendService = NULL;
+						printf("ECHO_SERVER: importWiringEndpoint successfully executed.\n");
 
-					printf("ECHO_SERVER: importWiringEndpoint successfully executed.\n");
+						wiringSendService = hashMap_get(sendCommand->sendServices, wireId);
 
-					wiringSendService = hashMap_get(sendCommand->sendServices, wireId);
+						if (wiringSendService == NULL) {
+							printf("ECHO_SERVER: No matching SendService found.\n");
+						} else {
 
-					if (wiringSendService == NULL) {
-						printf("ECHO_SERVER: No matching SendService found.\n");
+							char* reply = NULL;
+							int replyStatus = 0;
+
+							status = wiringSendService->send(wiringSendService, msg, &reply, &replyStatus);
+							printf("ECHO_SERVER: %s sent\n", msg);
+							printf("ECHO_SERVER: %s received\n", reply);
+						}
+
+						if (wtmService->removeImportedWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
+							printf("ECHO_SERVER: removeImportWiringEndpoint successfully executed.\n");
+						} else {
+							printf("ECHO_SERVER: removeImportWiringEndpoint failed.\n");
+						}
+
 					} else {
-
-						char* reply = NULL;
-						int replyStatus = 0;
-
-						status = wiringSendService->send(wiringSendService, msg, &reply, &replyStatus);
-						printf("ECHO_SERVER: %s sent\n", msg);
-						printf("ECHO_SERVER: %s received\n", reply);
+						printf("ECHO_SERVER: importWiringEndpoint failed.\n");
 					}
 
-					if (wtmService->removeImportedWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
-						printf("ECHO_SERVER: removeImportWiringEndpoint successfully executed.\n");
-					} else {
-						printf("ECHO_SERVER: removeImportWiringEndpoint failed.\n");
-					}
-
+					properties_destroy(rsaProperties);
+					sendCommand_destroySendServiceTracker(command);
 				} else {
-					printf("ECHO_SERVER: importWiringEndpoint failed.\n");
+					printf("ECHO_SERVER: Creation of SendServiceTracker (wireId %s) failed.\n", wireId);
 				}
-
-				properties_destroy(rsaProperties);
-				sendCommand_destroySendServiceTracker(command);
 			} else {
-				printf("ECHO_SERVER: Creation of SendServiceTracker (wireId %s) failed.\n", wireId);
+				printf("ECHO_SERVER: Usage: %s\n", command->usage);
 			}
 		} else {
 			printf("ECHO_SERVER: Could not get service.\n");

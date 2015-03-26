@@ -9,7 +9,8 @@
 #include "service_tracker.h"
 #include "hash_map.h"
 
-#define MAX_REPLY_LENGTH	5000
+#define WIREID_LENGTH		32
+#define MSG_LENGTH			255
 
 struct send_command {
 	service_tracker_pt sendServicesTracker;
