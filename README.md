@@ -2,10 +2,6 @@
 
 This branch contains a Celix-based implementation for the INAETICS wiring capabilities.
 
-## current stage of development
-
-Note that neither removeImportedWiringEndpoint nor removeExportedWiringEndpoint is currenlty implemented 
-
 ## Building and execution instructions
 
 0.   Be sure to have installed cmake,apr,apr-util,zlib,curl and jansson libraries
