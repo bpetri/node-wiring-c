@@ -154,10 +154,11 @@ celix_status_t etcdWatcher_addOwnNode(etcd_watcher_pt watcher) {
 		} else {
 			char etcdKey[MAX_LOCALNODE_LENGTH];
 			char etcdValue[MAX_LOCALNODE_LENGTH];
+			char* wireId = properties_get(wiringEndpointDesc->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
 			wiringEndpoint_properties_store(wiringEndpointDesc->properties, &etcdValue[0]);
 
-			snprintf(etcdKey, MAX_LOCALNODE_LENGTH, "%s/%s", localNodePath, wiringEndpointDesc->wireId);
+			snprintf(etcdKey, MAX_LOCALNODE_LENGTH, "%s/%s", localNodePath, wireId);
 
 			// TODO : implement update
 			etcd_set(etcdKey, etcdValue, ttl, false);

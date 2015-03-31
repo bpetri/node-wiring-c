@@ -120,9 +120,11 @@ static celix_status_t exportCommand_addImportedWiringEndpoint(void *handle, wiri
 	export_command_pt exportCommand = (export_command_pt) command->handle;
 
 	if (exportCommand->wiringReceiveServiceRegistration == NULL) {
-		printf("ECHO_SERVER: exportCommand_addImportedWiringEndpoint w/ wireId %s \n", wEndpoint->wireId);
+		char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-		status = exportCommand_registerReceive(command, wEndpoint->wireId);
+		printf("ECHO_SERVER: exportCommand_addImportedWiringEndpoint w/ wireId %s \n", wireId);
+
+		status = exportCommand_registerReceive(command, wireId);
 
 		if (status != CELIX_SUCCESS) {
 			printf("ECHO_SERVER: Registration of Receive Service failed\n");
@@ -139,8 +141,9 @@ static celix_status_t exportCommand_removeImportedWiringEndpoint(void *handle, w
 
 	wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
 	command_pt command = (command_pt) listener->handle;
+	char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-	status = exportCommand_unregisterReceive(command, wEndpoint->wireId);
+	status = exportCommand_unregisterReceive(command, wireId);
 
 	return status;
 }

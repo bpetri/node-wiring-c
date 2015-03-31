@@ -20,9 +20,6 @@ static const char * const INAETICS_WIRING_ADMIN_SCOPE = "wiring.admin.scope";
 #define NODE_DISCOVERY_NODE_WA_PORT		"NODE_DISCOVERY_NODE_WA_PORT"
 #define NODE_DISCOVERY_NODE_WA_ITF 		"NODE_DISCOVERY_NODE_WA_ITF"
 
-#define WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY			"inaetics.wiring.id"
-#define WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY		"inaetics.wiring.http.url"
-
 #define WIRING_ADMIN_PROPERTIES_CONFIG_KEY 				"inaetics.wiring.config"
 #define WIRING_ADMIN_PROPERTIES_SECURE_KEY 				"inaetics.wiring.secure"
 

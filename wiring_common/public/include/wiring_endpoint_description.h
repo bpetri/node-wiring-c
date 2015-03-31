@@ -9,9 +9,11 @@
 #include "array_list.h"
 #include "remote_constants.h"
 
+#define WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY			"inaetics.wiring.id"
+#define WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY		"inaetics.wiring.http.url"
+
 
 struct wiring_endpoint_description {
-	char* wireId;
 	properties_pt properties;
 };
 
@@ -19,6 +21,7 @@ typedef struct wiring_endpoint_description *wiring_endpoint_description_pt;
 
 celix_status_t wiringEndpointDescription_create(char* wireId, properties_pt properties, wiring_endpoint_description_pt *wiringEndpointDescription);
 celix_status_t wiringEndpointDescription_destroy(wiring_endpoint_description_pt *description);
+celix_status_t wiringEndpointDescription_getWireId(wiring_endpoint_description_pt description, char* wireId);
 void wiringEndpointDescription_dump(wiring_endpoint_description_pt description);
 unsigned int wiringEndpointDescription_hash(void* description);
 int wiringEndpointDescription_equals(void* description1, void* description2);

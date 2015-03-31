@@ -124,7 +124,9 @@ static celix_status_t sendCommand_sendServiceAdded(void * handle, service_refere
 	printf("ECHO_SERVER: Send Service Added");
 
 	wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
-	hashMap_put(sendCommand->sendServices, wiringSendService->wiringEndpointDescription->wireId, wiringSendService);
+	char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+	hashMap_put(sendCommand->sendServices, wireId, wiringSendService);
 
 	return status;
 }
@@ -141,7 +143,9 @@ static celix_status_t sendCommand_sendServiceRemoved(void * handle, service_refe
 	send_command_pt sendCommand = (send_command_pt) command->handle;
 
 	wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
-	hashMap_remove(sendCommand->sendServices, wiringSendService->wiringEndpointDescription->wireId);
+	char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+	hashMap_remove(sendCommand->sendServices, wireId);
 
 	return status;
 }

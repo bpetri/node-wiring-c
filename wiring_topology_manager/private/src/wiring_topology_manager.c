@@ -303,7 +303,7 @@ celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_
 	wiring_topology_manager_pt manager = (wiring_topology_manager_pt) listener->handle;
 
 	celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
-	char* wireId = wEndpoint->wireId;
+	char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
 	array_list_pt wiringAdminList = hashMap_remove(manager->importedWiringEndpoints, wEndpoint);
 
@@ -487,7 +487,8 @@ celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manage
 				wiring_admin_service_pt wiringAdminService = (wiring_admin_service_pt) arrayList_get(localWAs, listCnt);
 
 				if (arrayList_contains(wiringAdminList, wiringAdminService)) {
-					printf("WTM: WiringEndpoint %s is already imported by WiringAdminService %p\n", wiringEndpointDesc->wireId, wiringAdminService);
+					char* wireId = properties_get(wiringEndpointDesc->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+					printf("WTM: WiringEndpoint %s is already imported by WiringAdminService %p\n", wireId, wiringAdminService);
 				} else {
 					status = wiringTopologyManager_WiringAdminServiceImportWiringEndpoint(manager, wiringAdminService, wiringEndpointDesc);
 
@@ -526,6 +527,7 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topolog
 
 			int listCnt = 0;
 			int listSize = arrayList_size(wiringAdminList);
+			char* wireId = properties_get(wiringEndpointDesc->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
 			for (; listCnt < listSize; ++listCnt) {
 				wiring_admin_service_pt wiringAdminService = (wiring_admin_service_pt) arrayList_remove(wiringAdminList, listCnt);
@@ -535,7 +537,7 @@ celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topolog
 				}
 			}
 
-			printf("WTM: imported wiring endpoint %s removed\n", wiringEndpointDesc->wireId);
+			printf("WTM: imported wiring endpoint %s removed\n", wireId);
 		} else {
 			printf("WTM: given properties do not match imported Endpoint\n");
 		}

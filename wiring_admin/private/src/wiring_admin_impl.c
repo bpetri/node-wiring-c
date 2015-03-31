@@ -381,29 +381,31 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_en
 		status = bundleContext_getProperty(admin->context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &fwuuid);
 
 		if (status == CELIX_SUCCESS) {
-			printf("WA: HTTP Wiring Endpoint running at %s\n", admin->url);
-
+			char* wireId = NULL;
 			properties_pt props = properties_create();
 
+			printf("WA: HTTP Wiring Endpoint running at %s\n", admin->url);
 
 			status = wiringEndpointDescription_create(NULL, props, wEndpointDescription);
 
 			properties_set(props, WIRING_ADMIN_PROPERTIES_CONFIG_KEY, WIRING_ADMIN_PROPERTIES_CONFIG_VALUE);
-			properties_set(props, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, (*wEndpointDescription)->wireId);
 			properties_set(props, WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY, admin->url);
 			properties_set(props, (char*) OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, fwuuid);
-			printf("WA: wiringEndpointDescription_create w/ wireId %s started\n", (*wEndpointDescription)->wireId);
+
+			wireId = properties_get(props, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+			printf("WA: wiringEndpointDescription_create w/ wireId %s started\n", wireId);
 
 			if (status == CELIX_SUCCESS) {
 				service_tracker_pt tracker = NULL;
-				status = wiringAdmin_createWiringReceiveTracker(admin, &tracker, (*wEndpointDescription)->wireId);
+				status = wiringAdmin_createWiringReceiveTracker(admin, &tracker, wireId);
 
 				if (status == CELIX_SUCCESS) {
 					status = serviceTracker_open(tracker);
 
 					if (status == CELIX_SUCCESS) {
 						hashMap_put(admin->wiringReceiveTracker, *wEndpointDescription, tracker);
-						printf("WA: WiringReceiveTracker w/ wireId %s started\n", (*wEndpointDescription)->wireId);
+						printf("WA: WiringReceiveTracker w/ wireId %s started\n", wireId);
 					} else {
 						serviceTracker_destroy(tracker);
 					}
@@ -456,9 +458,10 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
 		status = CELIX_ENOMEM;
 	} else {
 		service_registration_pt wiringSendServiceReg = NULL;
-		properties_pt props = properties_create();
+		char* wireId = properties_get(wEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-		properties_set(props, (char*) INAETICS_WIRING_WIRE_ID, wEndpointDescription->wireId);
+		properties_pt props = properties_create();
+		properties_set(props, (char*) INAETICS_WIRING_WIRE_ID, wireId);
 
 		wiringSendService->wiringEndpointDescription = wEndpointDescription;
 		wiringSendService->send = wiringAdmin_send;
@@ -471,7 +474,7 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
 			hashMap_put(admin->wiringSendServices, wEndpointDescription, wiringSendService);
 			hashMap_put(admin->wiringSendRegistrations, wEndpointDescription, wiringSendServiceReg);
 
-			printf("WIRING_ADMIN: SEND SERVICE sucessfully registered w/ wireId %s\n", wEndpointDescription->wireId);
+			printf("WIRING_ADMIN: SEND SERVICE sucessfully registered w/ wireId %s\n", wireId);
 		}
 	}
 

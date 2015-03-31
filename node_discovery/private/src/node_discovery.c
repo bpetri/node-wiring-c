@@ -194,10 +194,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 
 	for (i = 0; i < size; ++i) {
 		wiring_endpoint_description_pt wep = arrayList_get(node_desc->wiring_ep_descriptions_list, i);
-
-		if (wep == NULL)
-			printf("WEP is null?!?\n");
-
+		char* wepWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 		bool availWEPfound = false;
 
 		if (availWEPDescList != NULL) {
@@ -205,7 +202,9 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 
 			while ((arrayListIterator_hasNext(availWEPDescListIter)) && (availWEPfound == false)) {
 				wiring_endpoint_description_pt availWEP = arrayListIterator_next(availWEPDescListIter);
-				if (strcmp(wep->wireId, availWEP->wireId) == 0) {
+				char* availWireId = properties_get(availWEP->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+				if (strcmp(wepWireId, availWireId) == 0) {
 					availWEPfound = true;
 				}
 			}
@@ -214,7 +213,7 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* ke
 		}
 
 		if (availWEPfound == false) {
-			printf("\nNODE_DISCOVERY: Adding new Wiring Endpoint %s\n", wep->wireId);
+			printf("\nNODE_DISCOVERY: Adding new Wiring Endpoint %s\n", wepWireId);
 
 			node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
 		} else {
@@ -328,6 +327,7 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 
 	wiring_endpoint_listener_pt wep = (wiring_endpoint_listener_pt) handle;
 	node_discovery_pt node_discovery = (node_discovery_pt) wep->handle;
+	char* wEndpointWireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
 	status = celixThreadMutex_lock(&node_discovery->ownNodeMutex);
 
@@ -340,9 +340,10 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 			while (arrayListIterator_hasNext(wep_it) && status == CELIX_SUCCESS) {
 				wiring_endpoint_description_pt wep = arrayListIterator_next(wep_it);
 
-				// Trying to add twice the same Wiring Endpoint Description should never happen!!
-				if (!strcmp(wEndpoint->wireId, wep->wireId)) {
-					printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_uuid=%s)\n", wEndpoint->wireId);
+				char* wepWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+				if (!strcmp(wEndpointWireId, wepWireId)) {
+					printf("NODE_DISCOVERY: WEPListener service trying to add already existing WEPDescription (wep_uuid=%s)\n", wEndpointWireId);
 					status = CELIX_ILLEGAL_STATE;
 				}
 			}
@@ -367,6 +368,7 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	celix_status_t status = CELIX_SUCCESS;
 
 	node_discovery_pt node_discovery = handle;
+	char* wEndpointWireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 	int i = 0;
 
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
@@ -374,8 +376,9 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 
 	for (; i < arrayList_size(node_discovery->ownNode->wiring_ep_descriptions_list); i++) {
 		wiring_endpoint_description_pt wep = arrayList_get(node_discovery->ownNode->wiring_ep_descriptions_list, i);
+		char* wepWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-		if (!strcmp(wEndpoint->wireId, wep->wireId)) {
+		if (!strcmp(wEndpointWireId, wepWireId)) {
 			arrayList_remove(node_discovery->ownNode->wiring_ep_descriptions_list, i);
 			break;
 		}
