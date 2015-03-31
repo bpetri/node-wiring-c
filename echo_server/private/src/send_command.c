@@ -166,7 +166,7 @@ void sendCommand_execute(command_pt command, char *line, void (*out)(char *), vo
 			char msg[MSG_LENGTH];
 
 			if (sscanf(line, "send %s %s", &wireId[0], &msg[0]) == 2) {
-				printf("ECHO_SERVER: Try to send \"%s\" to %s..\n", msg, wireId);
+				printf("ECHO_SERVER: Try to send \"%s\" to %s.\n", msg, wireId);
 
 				status = sendCommand_createSendServiceTracker(command, wireId);
 

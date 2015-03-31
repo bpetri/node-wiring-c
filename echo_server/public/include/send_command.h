@@ -9,7 +9,7 @@
 #include "service_tracker.h"
 #include "hash_map.h"
 
-#define WIREID_LENGTH		32
+#define WIREID_LENGTH		40
 #define MSG_LENGTH			255
 
 struct send_command {
