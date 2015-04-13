@@ -63,6 +63,8 @@ static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt
 static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_pt admin, char* wireId);
 
 static celix_status_t remoteServiceAdmin_createSendServiceTracker(remote_service_admin_pt admin);
+static celix_status_t remoteServiceAdmin_destroySendServiceTracker(remote_service_admin_pt admin);
+
 static celix_status_t remoteServiceAdmin_sendServiceAdding(void * handle, service_reference_pt reference, void **service);
 static celix_status_t remoteServiceAdmin_sendServiceAdded(void * handle, service_reference_pt reference, void * service);
 static celix_status_t remoteServiceAdmin_sendServiceModified(void * handle, service_reference_pt reference, void * service);
@@ -103,7 +105,12 @@ celix_status_t remoteServiceAdmin_create(bundle_context_pt context, remote_servi
 celix_status_t remoteServiceAdmin_destroy(remote_service_admin_pt *admin) {
 	celix_status_t status = CELIX_SUCCESS;
 
+	hashMap_destroy((*admin)->wiringReceiveServices, false, false);
+	hashMap_destroy((*admin)->wiringReceiveServiceRegistrations, false, false);
 	hashMap_destroy((*admin)->sendServices, false, false);
+
+	celixThreadMutex_destroy(&(*admin)->exportedServicesLock);
+	celixThreadMutex_destroy(&(*admin)->importedServicesLock);
 
 	free(*admin);
 
@@ -160,8 +167,11 @@ celix_status_t remoteServiceAdmin_stop(remote_service_admin_pt admin) {
 	hashMap_destroy(admin->exportedServices, false, false);
 	hashMap_destroy(admin->importedServices, false, false);
 
-	logHelper_stop(admin->loghelper);
-	logHelper_destroy(&admin->loghelper);
+	status = remoteServiceAdmin_destroySendServiceTracker(admin);
+
+	if (logHelper_stop(admin->loghelper) == CELIX_SUCCESS) {
+		logHelper_destroy(&admin->loghelper);
+	}
 
 	return status;
 }
@@ -174,7 +184,7 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
 	json_error_t jsonError;
 	json_t* root;
 
-	printf("ECHO_SERVER: data received: %s\n", data);
+	printf("RSA: data received: %s\n", data);
 
 	root = json_loads(data, 0, &jsonError);
 
@@ -195,7 +205,6 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
 
 				if (serviceId == export->endpointDescription->serviceId) {
 					export->endpoint->handleRequest(export->endpoint->endpoint, request, response);
-					printf("ECHO_SERVER: response is : %s\n", *response);
 					status = CELIX_SUCCESS;
 				}
 			}
@@ -221,7 +230,7 @@ celix_status_t remoteServiceAdmin_addImportedWiringEndpoint(void *handle, wiring
 	char* wireId = properties_get(wEndpoint->properties, (char*) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 	char* wireServiceId = properties_get(wEndpoint->properties, (char*) OSGI_FRAMEWORK_SERVICE_ID);
 
-	printf("ECHO_SERVER: exportCommand_addImportedWiringEndpoint w/ wireId %s \n", wireId);
+	printf("RSA: exportCommand_addImportedWiringEndpoint w/ wireId %s \n", wireId);
 
 	status = remoteServiceAdmin_registerReceive(admin, wireId);
 
@@ -247,6 +256,7 @@ celix_status_t remoteServiceAdmin_addImportedWiringEndpoint(void *handle, wiring
 					printf("RSA: exportCommand_addImportedWiringEndpoint service Id %s found\n", wireServiceId);
 					properties_set(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 				}
+				free(reference);
 			}
 		}
 		hashMapIterator_destroy(iter);
@@ -272,7 +282,7 @@ celix_status_t remoteServiceAdmin_removeImportedWiringEndpoint(void *handle, wir
 static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt admin, char* wireId) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	printf("registerReceive w/ wireId %s\n", wireId);
+	printf("RSA: registerReceive w/ wireId %s\n", wireId);
 
 	wiring_receive_service_pt wiringReceiveService = calloc(1, sizeof(*wiringReceiveService));
 
@@ -305,9 +315,10 @@ static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt
 static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_pt admin, char* wireId) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	printf("unregisterReceive w/ wireId %s\n", wireId);
+	printf("RSA: unregisterReceive w/ wireId %s\n", wireId);
 
 	service_registration_pt wiringReceiveServiceRegistration = hashMap_remove(admin->wiringReceiveServiceRegistrations, wireId);
+	wiring_receive_service_pt wiringReceiveService = hashMap_remove(admin->wiringReceiveServices, wireId);
 
 	if (wiringReceiveServiceRegistration != NULL) {
 		char* serviceWireId = NULL;
@@ -324,6 +335,10 @@ static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_
 				status = serviceRegistration_unregister(wiringReceiveServiceRegistration);
 			}
 		}
+	}
+
+	if (wiringReceiveService != NULL) {
+		free(wiringReceiveService);
 	}
 
 	return status;
@@ -434,19 +449,22 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
 							properties_set(properties, key, value);
 						}
+
+						free(keys);
 					}
 
 					if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
-						printf("ECHO_SERVER: Installation of Callback failed\n");
+						properties_destroy(properties);
+						printf("RSA: Installation of Callback failed\n");
 					} else {
-						printf("ECHO_SERVER: Receive callback successfully installed\n");
+						printf("RSA: Receive callback successfully installed\n");
 					}
 				}
 			} else {
-				printf("ECHO_SERVER: WTM SERVICE is not available.\n");
+				printf("RSA: WTM service is not available.\n");
 			}
 		} else {
-			printf("ECHO_SERVER: Could not retrieve service.\n");
+			printf("RSA: Could not retrieve wtm service reference.\n");
 		}
 
 		arrayList_destroy(interfaces);
@@ -659,10 +677,6 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
 
 	char* wireId = properties_get(endpointDescription->properties, (char*) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-
-
-	// json_unpack(root, "{s:d}", "serviceId", &serviceId);
-
 	if (wireId == NULL) {
 		printf("RSA: send called w/ proper endpoint_description: wireId missing.\n");
 	} else {
@@ -671,7 +685,7 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
 		wiringSendService = hashMap_get(admin->sendServices, wireId);
 
 		if (wiringSendService == NULL) {
-			printf("ECHO_SERVER: No SendService w/ wireId %s found.\n", wireId);
+			printf("RSA: No SendService w/ wireId %s found.\n", wireId);
 		} else {
 			json_t *root;
 			int replyStatus = 0;
@@ -681,8 +695,8 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
 
 			status = wiringSendService->send(wiringSendService, json_data, reply, &replyStatus);
 
-			printf("ECHO_SERVER: %s sent\n", request);
-			printf("ECHO_SERVER: %s received\n", *reply);
+			printf("RSA: %s sent\n", request);
+			printf("RSA: %s received\n", *reply);
 		}
 	}
 
@@ -703,30 +717,27 @@ static celix_status_t remoteServiceAdmin_createSendServiceTracker(remote_service
 		status = serviceTracker_createWithFilter(admin->context, filter, customizer, &admin->sendServicesTracker);
 
 		if ((status == CELIX_SUCCESS) && (serviceTracker_open(admin->sendServicesTracker) == CELIX_SUCCESS)) {
-			printf("ECHO_SERVER: serviceTracker created w/ %s\n", filter);
+			printf("RSA: sendServiceTracker created w/ filter %s\n", filter);
 		} else {
-			printf("ECHO_SERVER: serviceTracker could not be created w/ %s\n", filter);
+			printf("RSA: sendServiceTracker could not be created w/ %s\n", filter);
 		}
 	}
 
 	return status;
 }
 
-/*
- * TODO:
+static celix_status_t remoteServiceAdmin_destroySendServiceTracker(remote_service_admin_pt admin) {
+	celix_status_t status = CELIX_SUCCESS;
 
- celix_status_t remoteServiceAdmin_destroySendServiceTracker(command_pt command) {
- celix_status_t status = CELIX_SUCCESS;
- send_command_pt sendCommand = (send_command_pt) command->handle;
+	status = serviceTracker_close(admin->sendServicesTracker);
 
- status = serviceTracker_close(sendCommand->sendServicesTracker);
- if (status == CELIX_SUCCESS) {
- status = serviceTracker_destroy(sendCommand->sendServicesTracker);
- }
+	if (status == CELIX_SUCCESS) {
+		status = serviceTracker_destroy(admin->sendServicesTracker);
+	}
 
- return status;
- }
- */
+	return status;
+}
+
 static celix_status_t remoteServiceAdmin_sendServiceAdding(void * handle, service_reference_pt reference, void **service) {
 	celix_status_t status = CELIX_SUCCESS;
 
@@ -742,7 +753,7 @@ static celix_status_t remoteServiceAdmin_sendServiceAdded(void * handle, service
 
 	remote_service_admin_pt admin = (remote_service_admin_pt) handle;
 
-	printf("ECHO_SERVER: Send Service Added");
+	printf("RSA: Send Service Added\n");
 
 	wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
 	char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);

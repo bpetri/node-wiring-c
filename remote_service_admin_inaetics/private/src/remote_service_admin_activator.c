@@ -84,7 +84,6 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 			status = CELIX_ENOMEM;
 		} else {
-
 			wEndpointListener->handle = (void*) activator->admin;
 			wEndpointListener->wiringEndpointAdded = remoteServiceAdmin_addImportedWiringEndpoint;
 			wEndpointListener->wiringEndpointRemoved = remoteServiceAdmin_removeImportedWiringEndpoint;
@@ -130,10 +129,9 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 				status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
 
-				printf("RSA service registration succeeded\n");
-			}
-			else {
-				printf("RSA service registration failed\n");
+				printf("RSA: service registration succeeded\n");
+			} else {
+				printf("RSA: service registration failed\n");
 			}
 
 			activator->adminService = remoteServiceAdminService;
@@ -155,7 +153,6 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	free(activator->adminService);
 
 	serviceRegistration_unregister(activator->wEndpointListenerRegistration);
-	activator->wEndpointListener = NULL;
 	free(activator->wEndpointListener);
 
 	return status;

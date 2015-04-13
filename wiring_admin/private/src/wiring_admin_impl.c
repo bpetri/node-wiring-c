@@ -215,9 +215,7 @@ celix_status_t wiringAdmin_stop(wiring_admin_pt admin) {
 		if (serviceTracker_close(wiringReceiveTracker) == CELIX_SUCCESS) {
 			serviceTracker_destroy(wiringReceiveTracker);
 		}
-
 	}
-
 	hashMapIterator_destroy(iter);
 
 	hashMap_clear(admin->wiringReceiveTracker, false, false);
@@ -256,34 +254,22 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 			data[datalength] = '\0';
 
 			char *response = NULL;
-			printf("WA: RECEIVED  %s\n", data);
 
-			/* TODO: need to unwrap wireId */
 			hash_map_iterator_pt iter = hashMapIterator_create(admin->wiringReceiveServices);
 
 			while (hashMapIterator_hasNext(iter)) {
 				array_list_pt wiringReceiveServiceList = hashMapIterator_nextValue(iter);
 
-				printf("WA: size of wiringReceiveServiceList is %d\n", arrayList_size(wiringReceiveServiceList));
-
 				if (arrayList_size(wiringReceiveServiceList) > 0) {
-
+					printf("WA: size of wiringReceiveServiceList is %d\n", arrayList_size(wiringReceiveServiceList));
 					// TODO: we do not support mulitple wiringReceivers?
 					wiring_receive_service_pt wiringReceiveService = (wiring_receive_service_pt) arrayList_get(wiringReceiveServiceList, 0);
-					printf("WA: FORWARD TO RECEIVE %s\n", data);
 					wiringReceiveService->receive(wiringReceiveService->handle, data, &response);
-					printf("WA: REPLY FROM RECEIVE RECEIVE %s\n", data);
-
 					break;
-				}
-				else {
+				} else {
 					printf("WA: wiringReceiveServiceList is empty\n");
-
 				}
-
-
 			}
-
 			hashMapIterator_destroy(iter);
 
 			if (response != NULL) {

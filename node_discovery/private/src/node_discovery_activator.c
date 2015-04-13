@@ -123,6 +123,7 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	node_discovery_stop(activator->node_discovery);
 
 	serviceTracker_close(activator->wiringEndpointListenerTracker);
+
 	serviceRegistration_unregister(activator->wiringEndpointListenerService);
 
 	if (status == CELIX_SUCCESS) {
