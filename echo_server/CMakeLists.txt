@@ -4,6 +4,7 @@
 
 include_directories("${PROJECT_SOURCE_DIR}/wiring_common/public/include")
 include_directories("${CELIX_INCLUDE_DIRS}/remote_service_admin")
+include_directories("${PROJECT_SOURCE_DIR}/remote_service_admin_inaetics/public/include")
 include_directories("${CELIX_INCLUDE_DIRS}/shell")
 include_directories("private/include")
 include_directories("public/include")

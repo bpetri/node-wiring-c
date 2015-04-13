@@ -17,6 +17,6 @@ add_subdirectory(wiring_topology_manager)
 add_subdirectory(node_discovery)
 add_subdirectory(wiring_admin)
 add_subdirectory(echo_server)
-#add_subdirectory(inaetics_remote_service_admin)
+add_subdirectory(remote_service_admin_inaetics)
 
 deploy_targets()

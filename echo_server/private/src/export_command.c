@@ -13,6 +13,10 @@
 
 #include "constants.h"
 #include "remote_constants.h"
+
+#include "remote_service_admin.h"
+#include "remote_service_admin_inaetics.h"
+
 #include "wiring_endpoint_listener.h"
 #include "wiring_topology_manager.h"
 #include "wiring_endpoint_description.h"
@@ -23,7 +27,7 @@ static celix_status_t exportCommand_unregisterReceive(command_pt command, char* 
 static celix_status_t exportCommand_addImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
 static celix_status_t exportCommand_removeImportedWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
 
-celix_status_t echo_callback(char* data, char**response) {
+celix_status_t echo_callback(void* handle, char* data, char**response) {
 	celix_status_t status = CELIX_SUCCESS;
 	*response = calloc(500, sizeof(char));
 	printf("ECHO_SERVER: data received: %s\n", data);
@@ -163,6 +167,7 @@ static celix_status_t exportCommand_registerReceive(command_pt command, char* wi
 
 		properties_set(props, (char*) INAETICS_WIRING_WIRE_ID, wireId);
 
+		wiringReceiveService->handle = command;
 		wiringReceiveService->receive = echo_callback;
 		wiringReceiveService->wireId = wireId;
 

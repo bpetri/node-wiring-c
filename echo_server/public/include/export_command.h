@@ -10,14 +10,9 @@
 #include "service_registration.h"
 #include "command_impl.h"
 
-static const char * const INAETICS_WIRING_RECEIVE_SERVICE = "wiring_receive";
+#include "remote_service_admin.h"
+#include "remote_service_admin_inaetics.h"
 
-struct wiring_receive_service {
-	char* wireId;
-	celix_status_t (*receive)(char* data, char** response);
-};
-
-typedef struct wiring_receive_service *wiring_receive_service_pt;
 
 struct export_command {
 	wiring_endpoint_listener_pt wEndpointListener;

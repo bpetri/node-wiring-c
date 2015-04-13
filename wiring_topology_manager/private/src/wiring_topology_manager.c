@@ -343,8 +343,8 @@ static bool properties_match(properties_pt properties, properties_pt reference) 
 
 		printf("WTM: check prop %s\n", prop_key);
 
-		/*OSGI_RSA_ENDPOINT_FRAMEWORK_UUID (endpoint.framework.uuid) is a special property that shouldn't be taken in account*/
-		if (strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0) {
+		// we do not consider service properties
+		if (strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_SERVICE_ID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_OBJECTCLASS) == 0 || strcmp(prop_key, "service.exported.interfaces") == 0) {
 			continue;
 		}
 
@@ -376,6 +376,9 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoi
 			if (status != CELIX_SUCCESS) {
 				printf("WA: export of WiringAdmin failed\n");
 			} else {
+			    char *serviceId = properties_get(srvcProperties, (char *)OSGI_FRAMEWORK_SERVICE_ID);
+				properties_set((*wEndpoint)->properties, (char *)OSGI_FRAMEWORK_SERVICE_ID, serviceId);
+
 				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, *wEndpoint);
 			}
 		}
@@ -389,6 +392,7 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 
 	if (srvcProperties == NULL) {
 		status = CELIX_ILLEGAL_ARGUMENT;
+		printf("WTM: srvcProperties is NULL\n");
 	} else {
 		celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
 

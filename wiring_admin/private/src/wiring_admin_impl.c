@@ -15,11 +15,12 @@
 #include <service_tracker.h>
 #include "curl/curl.h"
 
+#include "remote_service_admin.h"
+#include "remote_service_admin_inaetics.h"
+
 #include "wiring_admin.h"
 #include "wiring_admin_impl.h"
 #include "wiring_common_utils.h"
-
-#include "export_command.h"
 
 #include "civetweb.h"
 
@@ -255,6 +256,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 			data[datalength] = '\0';
 
 			char *response = NULL;
+			printf("WA: RECEIVED  %s\n", data);
 
 			/* TODO: need to unwrap wireId */
 			hash_map_iterator_pt iter = hashMapIterator_create(admin->wiringReceiveServices);
@@ -262,13 +264,23 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 			while (hashMapIterator_hasNext(iter)) {
 				array_list_pt wiringReceiveServiceList = hashMapIterator_nextValue(iter);
 
+				printf("WA: size of wiringReceiveServiceList is %d\n", arrayList_size(wiringReceiveServiceList));
+
 				if (arrayList_size(wiringReceiveServiceList) > 0) {
 
 					// TODO: we do not support mulitple wiringReceivers?
 					wiring_receive_service_pt wiringReceiveService = (wiring_receive_service_pt) arrayList_get(wiringReceiveServiceList, 0);
-					wiringReceiveService->receive(data, &response);
+					printf("WA: FORWARD TO RECEIVE %s\n", data);
+					wiringReceiveService->receive(wiringReceiveService->handle, data, &response);
+					printf("WA: REPLY FROM RECEIVE RECEIVE %s\n", data);
+
 					break;
 				}
+				else {
+					printf("WA: wiringReceiveServiceList is empty\n");
+
+				}
+
 
 			}
 
