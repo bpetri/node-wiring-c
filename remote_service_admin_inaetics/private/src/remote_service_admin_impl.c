@@ -419,45 +419,56 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 			if (wtmService != NULL) {
 				if (arrayList_size(interfaces) != 0) {
 					int iter = 0;
-					for (iter = 0; iter < arrayList_size(interfaces); iter++) {
+					for (iter = 0; iter < arrayList_size(interfaces) && (status == CELIX_SUCCESS); iter++) {
 						char *interface = arrayList_get(interfaces, iter);
 						export_registration_pt registration = NULL;
 
 						exportRegistration_create(admin->loghelper, reference, NULL, admin, admin->context, &registration);
 						arrayList_add(*registrations, registration);
 
-						remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
-						exportRegistration_open(registration);
-						exportRegistration_startTracking(registration);
-					}
-					celixThreadMutex_lock(&admin->exportedServicesLock);
-					hashMap_put(admin->exportedServices, reference, *registrations);
-					celixThreadMutex_unlock(&admin->exportedServicesLock);
+						status = remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
 
-					if (properties == NULL) {
-						properties = properties_create();
-
-						unsigned int size = 0;
-						char **keys;
-
-						serviceReference_getPropertyKeys(reference, &keys, &size);
-						int i = 0;
-						for (; i < size; i++) {
-							char *key = keys[i];
-							char *value = NULL;
-							serviceReference_getProperty(reference, key, &value);
-
-							properties_set(properties, key, value);
+						if (status == CELIX_SUCCESS) {
+							status = exportRegistration_open(registration);
 						}
 
-						free(keys);
+						if (status == CELIX_SUCCESS) {
+							status = exportRegistration_startTracking(registration);
+						} else {
+							exportRegistration_destroy(&registration);
+						}
 					}
 
-					if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
-						properties_destroy(properties);
-						printf("RSA: Installation of Callback failed\n");
-					} else {
-						printf("RSA: Receive callback successfully installed\n");
+					if (status == CELIX_SUCCESS) {
+						celixThreadMutex_lock(&admin->exportedServicesLock);
+						hashMap_put(admin->exportedServices, reference, *registrations);
+						celixThreadMutex_unlock(&admin->exportedServicesLock);
+
+						if (properties == NULL) {
+							properties = properties_create();
+
+							unsigned int size = 0;
+							char **keys;
+
+							serviceReference_getPropertyKeys(reference, &keys, &size);
+							int i = 0;
+							for (; i < size; i++) {
+								char *key = keys[i];
+								char *value = NULL;
+								serviceReference_getProperty(reference, key, &value);
+
+								properties_set(properties, key, value);
+							}
+
+							free(keys);
+						}
+
+						if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
+							properties_destroy(properties);
+							printf("RSA: Installation of Callback failed\n");
+						} else {
+							printf("RSA: Receive callback successfully installed\n");
+						}
 					}
 				}
 			} else {
