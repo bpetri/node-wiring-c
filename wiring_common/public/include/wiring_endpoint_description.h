@@ -9,7 +9,7 @@
 #include "array_list.h"
 #include "remote_constants.h"
 
-#define WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY			"inaetics.wiring.id"
+#define WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY			"org.inaetics.remote.admin.wiring.wireId"
 #define WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY		"inaetics.wiring.http.url"
 
 

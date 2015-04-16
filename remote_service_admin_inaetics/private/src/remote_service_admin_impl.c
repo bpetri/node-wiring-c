@@ -59,6 +59,8 @@
 #include "wiring_endpoint_description.h"
 #include "wiring_admin.h"
 
+static const char * const CONFIGURATION_TYPE = "org.inaetics.remote.admin.wiring";
+
 static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt admin, char* wireId);
 static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_pt admin, char* wireId);
 
@@ -191,8 +193,10 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
 	if (root) {
 		int serviceId = -1;
 		char* request = NULL;
+		json_t* json_request = NULL;
 
-		json_unpack(root, "{s:i, s:s}", "service.id", &serviceId, "request", &request);
+		json_unpack(root, "{s:i, s:o}", "service.id", &serviceId, "request", &json_request);
+		request = json_dumps(json_request, 0);
 
 		hash_map_iterator_pt iter = hashMapIterator_create(admin->exportedServices);
 		while (hashMapIterator_hasNext(iter)) {
@@ -534,7 +538,7 @@ celix_status_t remoteServiceAdmin_installEndpoint(remote_service_admin_pt admin,
 	properties_set(endpointProperties, (char*) OSGI_RSA_ENDPOINT_SERVICE_ID, serviceId);
 	properties_set(endpointProperties, (char*) OSGI_RSA_ENDPOINT_ID, endpoint_uuid);
 	properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED, "true");
-//	properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED_CONFIGS, (char*) CONFIGURATION_TYPE);
+	properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED_CONFIGS, (char*) CONFIGURATION_TYPE);
 
 	endpoint_description_pt endpointDescription = NULL;
 	remoteServiceAdmin_createEndpointDescription(admin, reference, endpointProperties, interface, &endpointDescription);
@@ -699,9 +703,13 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
 			printf("RSA: No SendService w/ wireId %s found.\n", wireId);
 		} else {
 			json_t *root;
+			json_t *json_request;
+			json_error_t jsonError;
+
 			int replyStatus = 0;
 
-			root = json_pack("{s:i, s:s}", "service.id", endpointDescription->serviceId, "request", request);
+			json_request = json_loads(request, 0, &jsonError);
+			root = json_pack("{s:i, s:o}", "service.id", endpointDescription->serviceId, "request", json_request);
 			char *json_data = json_dumps(root, 0);
 
 			status = wiringSendService->send(wiringSendService, json_data, reply, &replyStatus);
