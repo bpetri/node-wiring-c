@@ -70,7 +70,6 @@ unsigned int wiringEndpointDescription_hash(void* description) {
 	}
 
 	return 0;
-
 }
 
 int wiringEndpointDescription_equals(void* description1, void* description2) {
@@ -94,7 +93,6 @@ int wiringEndpointDescription_equals(void* description1, void* description2) {
 	}
 
 	return 1;
-
 }
 
 void wiringEndpointDescription_dump(wiring_endpoint_description_pt description) {

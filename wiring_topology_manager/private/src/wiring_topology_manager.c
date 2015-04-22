@@ -36,6 +36,9 @@ typedef struct wiring_endpoint_registration {
 	wiring_admin_service_pt wiringAdminService;
 }* wiring_endpoint_registration_pt;
 
+unsigned int wiringTopologyManager_srvcProperties_hash(void*  properties);
+int wiringTopologyManager_srvcProperties_equals(void* properties, void * toCompare);
+
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint);
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointRemoved(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint);
 
@@ -61,7 +64,7 @@ celix_status_t wiringTopologyManager_create(bundle_context_pt context, wiring_to
 	celixThreadMutex_create(&((*manager)->exportedWiringEndpointsLock), NULL);
 
 	(*manager)->importedWiringEndpoints = hashMap_create(wiringEndpointDescription_hash, NULL, wiringEndpointDescription_equals, NULL); // key=wiring_endpoint_description_pt, value=array_list_pt wadmins
-	(*manager)->exportedWiringEndpoints = hashMap_create(NULL, NULL, NULL, NULL); // key=properties_pt, value=(hash_map_pt  key=wadmin, value=wendpoint)
+	(*manager)->exportedWiringEndpoints = hashMap_create(wiringTopologyManager_srvcProperties_hash, NULL, wiringTopologyManager_srvcProperties_equals, NULL); // key=properties_pt, value=(hash_map_pt  key=wadmin, value=wendpoint)
 
 	return status;
 }
@@ -88,8 +91,10 @@ celix_status_t wiringTopologyManager_destroy(wiring_topology_manager_pt manager)
 
 	while (hashMapIterator_hasNext(iter)) {
 		hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
+		properties_pt srvcProperties = hashMapEntry_getKey(entry);
 		hash_map_pt wiringAdminList = hashMapEntry_getValue(entry);
 
+		properties_destroy(srvcProperties);
 		hashMap_destroy(wiringAdminList, false, false);
 
 	}
@@ -331,6 +336,50 @@ celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_
 }
 
 /* Return true if all pairs in properties are contained in reference */
+unsigned int wiringTopologyManager_srvcProperties_hash(void* properties) {
+	bool matching = true;
+	unsigned int hash = 1216721012;
+	hash_map_iterator_pt iter = hashMapIterator_create((properties_pt) properties);
+
+	while (hashMapIterator_hasNext(iter) && matching) {
+		hash_map_entry_pt prop_pair = hashMapIterator_nextEntry(iter);
+		char* prop_key = (char*) hashMapEntry_getKey(prop_pair);
+		char* prop_value = (char*) hashMapEntry_getValue(prop_pair);
+
+		// we do not consider service properties
+		if (!(strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_SERVICE_ID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_OBJECTCLASS) == 0 || strcmp(prop_key, "service.exported.interfaces") == 0)) {
+			hash ^= utils_stringHash(prop_key);
+			hash ^= utils_stringHash(prop_value);
+		}
+	}
+
+	hashMapIterator_destroy(iter);
+
+	return hash;
+}
+
+int wiringTopologyManager_srvcProperties_equals(void* properties, void * toCompare) {
+	bool matching = true;
+	hash_map_iterator_pt iter = hashMapIterator_create(properties);
+
+	while (hashMapIterator_hasNext(iter) && matching) {
+		hash_map_entry_pt prop_pair = hashMapIterator_nextEntry(iter);
+		char* prop_key = (char*) hashMapEntry_getKey(prop_pair);
+		char* prop_value = (char*) hashMapEntry_getValue(prop_pair);
+
+		// we do not consider service properties
+		if (!(strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_SERVICE_ID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_OBJECTCLASS) == 0 || strcmp(prop_key, "service.exported.interfaces") == 0)) {
+			char* ref_value = (char*) hashMap_get(toCompare, prop_key);
+			if (ref_value == NULL || (strcmp(ref_value, prop_value) != 0)) {
+				matching = false; // We found a pair in properties not included in reference
+			}
+		}
+	}
+	hashMapIterator_destroy(iter);
+
+	return matching;
+}
+
 static bool properties_match(properties_pt properties, properties_pt reference) {
 
 	bool matching = true;
@@ -357,11 +406,11 @@ static bool properties_match(properties_pt properties, properties_pt reference) 
 	hashMapIterator_destroy(iter);
 
 	return matching;
-
 }
 
 static celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoint(wiring_topology_manager_pt manager, wiring_admin_service_pt wiringAdminService, properties_pt srvcProperties, wiring_endpoint_description_pt* wEndpoint) {
 	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
+
 	properties_pt adminProperties = NULL;
 
 	/* retrieve capabilities of wiringAdmin */
@@ -371,13 +420,14 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoi
 
 		/* check whether the wiringAdmin can fulfill what is requested by the service */
 		if (properties_match(srvcProperties, adminProperties) == true) {
+
 			status = wiringAdminService->exportWiringEndpoint(wiringAdminService->admin, wEndpoint);
 
 			if (status != CELIX_SUCCESS) {
 				printf("WA: export of WiringAdmin failed\n");
 			} else {
-			    char *serviceId = properties_get(srvcProperties, (char *)OSGI_FRAMEWORK_SERVICE_ID);
-				properties_set((*wEndpoint)->properties, (char *)OSGI_FRAMEWORK_SERVICE_ID, serviceId);
+				char *serviceId = properties_get(srvcProperties, (char *) OSGI_FRAMEWORK_SERVICE_ID);
+				properties_set((*wEndpoint)->properties, (char *) OSGI_FRAMEWORK_SERVICE_ID, serviceId);
 
 				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, *wEndpoint);
 			}
@@ -392,35 +442,52 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 
 	if (srvcProperties == NULL) {
 		status = CELIX_ILLEGAL_ARGUMENT;
-		printf("WTM: srvcProperties is NULL\n");
 	} else {
+		array_list_pt wiringAdmins = NULL;
+		wiring_endpoint_description_pt wEndpoint = NULL;
+		hash_map_pt wiringAdminList = NULL;
+
 		celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
 
-		hash_map_pt wiringAdminList = hashMap_get(manager->exportedWiringEndpoints, srvcProperties);
+		wiringAdminList = hashMap_get(manager->exportedWiringEndpoints, srvcProperties);
 
 		if (wiringAdminList == NULL) {
 			wiringAdminList = hashMap_create(NULL, NULL, NULL, NULL);
 			hashMap_put(manager->exportedWiringEndpoints, srvcProperties, wiringAdminList);
-		}
 
-		array_list_pt localWAs = NULL;
-		wiring_endpoint_description_pt wEndpoint = NULL;
-		wiringTopologyManager_getWAs(manager, &localWAs);
+			wiringTopologyManager_getWAs(manager, &wiringAdmins);
 
-		int listCnt = 0;
-		int listSize = arrayList_size(localWAs);
+			int listCnt = 0;
+			int listSize = arrayList_size(wiringAdmins);
 
-		for (; listCnt < listSize && (wEndpoint == NULL); ++listCnt) {
-			wiring_admin_service_pt wiringAdminService = (wiring_admin_service_pt) arrayList_get(localWAs, listCnt);
+			for (; listCnt < listSize && (wEndpoint == NULL); ++listCnt) {
 
-			status = wiringTopologyManager_WiringAdminServiceExportWiringEndpoint(manager, wiringAdminService, srvcProperties, &wEndpoint);
+				wiring_admin_service_pt wiringAdminService = (wiring_admin_service_pt) arrayList_get(wiringAdmins, listCnt);
 
-			if (status == CELIX_SUCCESS) {
-				hashMap_put(wiringAdminList, wiringAdminService, wEndpoint);
+				status = wiringTopologyManager_WiringAdminServiceExportWiringEndpoint(manager, wiringAdminService, srvcProperties, &wEndpoint);
+				if (status == CELIX_SUCCESS) {
+					hashMap_put(wiringAdminList, wiringAdminService, wEndpoint);
+				}
 			}
-		}
 
-		arrayList_destroy(localWAs);
+			arrayList_destroy(wiringAdmins);
+
+		} else {
+			status = CELIX_SUCCESS;
+
+			hash_map_iterator_pt wiringAdminIter = hashMapIterator_create(wiringAdminList);
+
+			while ((hashMapIterator_hasNext(wiringAdminIter) == true) && (status == CELIX_SUCCESS)) {
+				wiring_endpoint_description_pt wEndpoint = (wiring_endpoint_description_pt) hashMapIterator_nextValue(wiringAdminIter);
+
+				char *serviceId = properties_get(srvcProperties, (char *) OSGI_FRAMEWORK_SERVICE_ID);
+				properties_set(wEndpoint->properties, (char *) OSGI_FRAMEWORK_SERVICE_ID, serviceId);
+
+				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, wEndpoint);
+			}
+
+			hashMapIterator_destroy(wiringAdminIter);
+		}
 
 		celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
 
