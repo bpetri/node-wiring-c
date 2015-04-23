@@ -426,9 +426,6 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoi
 			if (status != CELIX_SUCCESS) {
 				printf("WA: export of WiringAdmin failed\n");
 			} else {
-				char *serviceId = properties_get(srvcProperties, (char *) OSGI_FRAMEWORK_SERVICE_ID);
-				properties_set((*wEndpoint)->properties, (char *) OSGI_FRAMEWORK_SERVICE_ID, serviceId);
-
 				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, *wEndpoint);
 			}
 		}
@@ -467,6 +464,10 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 				status = wiringTopologyManager_WiringAdminServiceExportWiringEndpoint(manager, wiringAdminService, srvcProperties, &wEndpoint);
 				if (status == CELIX_SUCCESS) {
 					hashMap_put(wiringAdminList, wiringAdminService, wEndpoint);
+
+					char *wireId = properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+					properties_set(srvcProperties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
+
 				}
 			}
 
@@ -480,8 +481,8 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 			while ((hashMapIterator_hasNext(wiringAdminIter) == true) && (status == CELIX_SUCCESS)) {
 				wiring_endpoint_description_pt wEndpoint = (wiring_endpoint_description_pt) hashMapIterator_nextValue(wiringAdminIter);
 
-				char *serviceId = properties_get(srvcProperties, (char *) OSGI_FRAMEWORK_SERVICE_ID);
-				properties_set(wEndpoint->properties, (char *) OSGI_FRAMEWORK_SERVICE_ID, serviceId);
+				char *wireId = properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+				properties_set(srvcProperties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 
 				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, wEndpoint);
 			}

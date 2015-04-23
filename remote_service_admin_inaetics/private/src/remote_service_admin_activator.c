@@ -111,26 +111,24 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			remoteServiceAdminService->importRegistration_close = remoteServiceAdmin_removeImportedService;
 			remoteServiceAdminService->importRegistration_getException = importRegistration_getException;
 			remoteServiceAdminService->importRegistration_getImportReference = importRegistration_getImportReference;
+			char *uuid = NULL;
 
-			status = bundleContext_registerService(context, OSGI_RSA_REMOTE_SERVICE_ADMIN, remoteServiceAdminService, NULL, &activator->registration);
+			properties_pt props = properties_create();
+			bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
+			size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
+			char scope[len + 1];
+
+			sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+
+			properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+
+			status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
 
 			if (status == CELIX_SUCCESS) {
-
-				char *uuid = NULL;
-
-				properties_pt props = properties_create();
-				bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
-				size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-				char scope[len + 1];
-
-				sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
-
-				properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
-
-				status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
-
+				status = bundleContext_registerService(context, OSGI_RSA_REMOTE_SERVICE_ADMIN, remoteServiceAdminService, NULL, &activator->registration);
 				printf("RSA: service registration succeeded\n");
 			} else {
+				properties_destroy(props);
 				printf("RSA: service registration failed\n");
 			}
 

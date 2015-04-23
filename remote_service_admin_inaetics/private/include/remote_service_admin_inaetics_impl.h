@@ -46,6 +46,8 @@ struct remote_service_admin {
 	hash_map_pt wiringReceiveServices;
 	hash_map_pt wiringReceiveServiceRegistrations;
 
+	array_list_pt exportedWires;
+
 	service_tracker_pt sendServicesTracker;
 	hash_map_pt sendServices;
 };
