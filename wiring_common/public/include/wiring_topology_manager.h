@@ -18,7 +18,7 @@ typedef struct wiring_topology_manager* wiring_topology_manager_pt;
 struct wiring_topology_manager_service {
 	wiring_topology_manager_pt manager;
 
-	celix_status_t (*exportWiringEndpoint)(wiring_topology_manager_pt manager, properties_pt properties);
+	celix_status_t (*exportWiringEndpoint)(wiring_topology_manager_pt manager, properties_pt properties, char** wireId);
 	celix_status_t (*removeExportedWiringEndpoint)(wiring_topology_manager_pt manager, properties_pt properties);
 
 	celix_status_t (*importWiringEndpoint)(wiring_topology_manager_pt manager, properties_pt properties);

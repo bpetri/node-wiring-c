@@ -455,12 +455,12 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
 							free(keys);
 						}
+						char* wireId = NULL;
 
-						if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
+						if (wtmService->exportWiringEndpoint(wtmService->manager, properties, &wireId) != CELIX_SUCCESS) {
 							properties_destroy(properties);
 							printf("RSA: Installation of Callback failed\n");
-						} else {
-							char* wireId = properties_get(properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+						} else if (wireId != NULL) {
 
 							if (arrayList_contains(admin->exportedWires, wireId)) {
 								int i;
@@ -486,6 +486,8 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 							} else {
 								printf("RSA: Could not find wireId after exporting WiringEndpoint\n");
 							}
+
+							free(wireId);
 						}
 					}
 				}

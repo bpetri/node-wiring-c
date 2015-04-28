@@ -36,7 +36,7 @@ typedef struct wiring_endpoint_registration {
 	wiring_admin_service_pt wiringAdminService;
 }* wiring_endpoint_registration_pt;
 
-unsigned int wiringTopologyManager_srvcProperties_hash(void*  properties);
+unsigned int wiringTopologyManager_srvcProperties_hash(void* properties);
 int wiringTopologyManager_srvcProperties_equals(void* properties, void * toCompare);
 
 static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wEndpoint);
@@ -434,7 +434,7 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoi
 	return status;
 }
 
-celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manager_pt manager, properties_pt srvcProperties) {
+celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manager_pt manager, properties_pt srvcProperties, char** wireId) {
 	celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
 	if (srvcProperties == NULL) {
@@ -465,12 +465,11 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 				if (status == CELIX_SUCCESS) {
 					hashMap_put(wiringAdminList, wiringAdminService, wEndpoint);
 
-					char *wireId = properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
-					properties_set(srvcProperties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
-
+					if (*wireId == NULL) {
+						*wireId = strdup(properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY));
+					}
 				}
 			}
-
 			arrayList_destroy(wiringAdmins);
 
 		} else {
@@ -481,13 +480,16 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
 			while ((hashMapIterator_hasNext(wiringAdminIter) == true) && (status == CELIX_SUCCESS)) {
 				wiring_endpoint_description_pt wEndpoint = (wiring_endpoint_description_pt) hashMapIterator_nextValue(wiringAdminIter);
 
-				char *wireId = properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
-				properties_set(srvcProperties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
+				if (*wireId == NULL) {
+					*wireId = strdup(properties_get(wEndpoint->properties, (char *) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY));
+				}
 
 				status = wiringTopologyManager_notifyListenersWiringEndpointAdded(manager, wEndpoint);
 			}
 
 			hashMapIterator_destroy(wiringAdminIter);
+
+			properties_destroy(srvcProperties);
 		}
 
 		celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
