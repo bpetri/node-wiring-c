@@ -15,9 +15,9 @@ include_directories("${PROJECT_SOURCE_DIR}/echo_server/public/include")
 include_directories("${CELIX_INCLUDE_DIRS}/shell")
 
 
-SET(BUNDLE_SYMBOLICNAME "org.inaetics.wiring_admin")
+SET(BUNDLE_SYMBOLICNAME "apache_celix_wiring_admin")
 SET(BUNDLE_VERSION "0.0.1")
-SET(BUNDLE_NAME "org.inaetics.wiring_admin.WiringAdmin")
+SET(BUNDLE_NAME "apache_celix_wiring_admin")
 
 bundle(org.inaetics.wiring_admin.WiringAdmin SOURCES 
 	private/src/wiring_admin_impl

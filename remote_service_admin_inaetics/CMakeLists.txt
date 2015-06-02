@@ -21,9 +21,9 @@ include_directories("${PROJECT_SOURCE_DIR}/wiring_common/public/include")
 include_directories("private/include")
 include_directories("${CELIX_INCLUDE_DIR}/remote_services/endpoint_listener/public/include")
 
-SET_HEADER(BUNDLE_SYMBOLICNAME "org.inaetics.remote_service_admin")
+SET(BUNDLE_SYMBOLICNAME "apache_celix_wiring_remote_service_admin")
 SET(BUNDLE_VERSION "0.0.1")
-SET_HEADERS("Bundle-Name: org.inaetics.remote_service_admin")
+SET(BUNDLE_NAME "apache_celix_wiring_remote_service_admin")
 
 bundle(org.inaetics.remote_service_admin SOURCES 
 	private/src/remote_service_admin_impl

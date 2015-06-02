@@ -14,9 +14,9 @@ include_directories("private/include")
 include_directories("public/include")
 
 
-SET(BUNDLE_SYMBOLICNAME "org.inaetics.node_discovery.etcd")
+SET(BUNDLE_SYMBOLICNAME "apache_celix_wiring_node_discovery_etcd")
 SET(BUNDLE_VERSION "0.0.1")
-SET(BUNDLE_NAME "org.inaetics.node_discovery.etcd.NodeDiscovery")
+SET(BUNDLE_NAME "apache_celix_wiring_node_discovery_etcd")
 
 
 bundle(org.inaetics.node_discovery.etcd.NodeDiscovery SOURCES

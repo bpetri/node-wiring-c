@@ -12,9 +12,9 @@ include_directories("${PROJECT_SOURCE_DIR}/wiring_common/public/include")
 include_directories("private/include")
 
 
-SET(BUNDLE_SYMBOLICNAME "org.inaetics.wiring_topology_manager")
+SET(BUNDLE_SYMBOLICNAME "apache_celix_wiring_topology_manager")
 SET(BUNDLE_VERSION "0.0.1")
-SET(BUNDLE_NAME "org.inaetics.wiring_topology_manager.WiringTopologyManager")
+SET(BUNDLE_NAME "apache_celix_wiring_topology_manager")
 
 
 bundle(org.inaetics.wiring_topology_manager.WiringTopologyManager SOURCES
