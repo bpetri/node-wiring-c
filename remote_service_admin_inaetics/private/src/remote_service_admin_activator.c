@@ -12,7 +12,11 @@
 #include "export_registration_impl.h"
 #include "import_registration_impl.h"
 
+#include "wiring_topology_manager.h"
 #include "wiring_endpoint_listener.h"
+
+static celix_status_t bundleActivator_createWTMTracker(struct activator *activator, service_tracker_pt *tracker);
+
 
 struct activator {
 	remote_service_admin_pt admin;
@@ -22,6 +26,7 @@ struct activator {
 	wiring_endpoint_listener_pt wEndpointListener;
 	service_registration_pt wEndpointListenerRegistration;
 
+    service_tracker_pt wtmTracker;
 };
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
@@ -34,6 +39,7 @@ celix_status_t bundleActivator_create(bundle_context_pt context, void **userData
 	} else {
 		activator->admin = NULL;
 		activator->registration = NULL;
+	    activator->wtmTracker = NULL;
 
 		*userData = activator;
 	}
@@ -63,55 +69,66 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
 			status = CELIX_ENOMEM;
 		} else {
-			wEndpointListener->handle = (void*) activator->admin;
-			wEndpointListener->wiringEndpointAdded = remoteServiceAdmin_addImportedWiringEndpoint;
-			wEndpointListener->wiringEndpointRemoved = remoteServiceAdmin_removeImportedWiringEndpoint;
+           status = bundleActivator_createWTMTracker(activator, &activator->wtmTracker);
 
-			activator->wEndpointListener = wEndpointListener;
-			activator->wEndpointListenerRegistration = NULL;
+            if (status != CELIX_SUCCESS) {
+                printf("RSA: Creation of WTMTracker failed\n");
+            }
+            else {
 
-			remoteServiceAdminService->admin = activator->admin;
+                serviceTracker_open(activator->wtmTracker);
 
-			remoteServiceAdminService->exportService = remoteServiceAdmin_exportService;
-			remoteServiceAdminService->getExportedServices = remoteServiceAdmin_getExportedServices;
-			remoteServiceAdminService->getImportedEndpoints = remoteServiceAdmin_getImportedEndpoints;
-			remoteServiceAdminService->importService = remoteServiceAdmin_importService;
+                wEndpointListener->handle = (void*) activator->admin;
+                wEndpointListener->wiringEndpointAdded = remoteServiceAdmin_addWiringEndpoint;
+                wEndpointListener->wiringEndpointRemoved = remoteServiceAdmin_removeWiringEndpoint;
 
-			remoteServiceAdminService->exportReference_getExportedEndpoint = exportReference_getExportedEndpoint;
-			remoteServiceAdminService->exportReference_getExportedService = exportReference_getExportedService;
+                activator->wEndpointListener = wEndpointListener;
+                activator->wEndpointListenerRegistration = NULL;
 
-			remoteServiceAdminService->exportRegistration_close = exportRegistration_close;
-			remoteServiceAdminService->exportRegistration_getException = exportRegistration_getException;
-			remoteServiceAdminService->exportRegistration_getExportReference = exportRegistration_getExportReference;
+                remoteServiceAdminService->admin = activator->admin;
 
-			remoteServiceAdminService->importReference_getImportedEndpoint = importReference_getImportedEndpoint;
-			remoteServiceAdminService->importReference_getImportedService = importReference_getImportedService;
+                remoteServiceAdminService->exportService = remoteServiceAdmin_exportService;
+                remoteServiceAdminService->getExportedServices = remoteServiceAdmin_getExportedServices;
+                remoteServiceAdminService->getImportedEndpoints = remoteServiceAdmin_getImportedEndpoints;
+                remoteServiceAdminService->importService = remoteServiceAdmin_importService;
 
-			remoteServiceAdminService->importRegistration_close = remoteServiceAdmin_removeImportedService;
-			remoteServiceAdminService->importRegistration_getException = importRegistration_getException;
-			remoteServiceAdminService->importRegistration_getImportReference = importRegistration_getImportReference;
-			char *uuid = NULL;
+                remoteServiceAdminService->exportReference_getExportedEndpoint = exportReference_getExportedEndpoint;
+                remoteServiceAdminService->exportReference_getExportedService = exportReference_getExportedService;
 
-			properties_pt props = properties_create();
-			bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
-			size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-			char scope[len + 1];
+                remoteServiceAdminService->exportRegistration_close = exportRegistration_close;
+                remoteServiceAdminService->exportRegistration_getException = exportRegistration_getException;
+                remoteServiceAdminService->exportRegistration_getExportReference = exportRegistration_getExportReference;
 
-			sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+                remoteServiceAdminService->importReference_getImportedEndpoint = importReference_getImportedEndpoint;
+                remoteServiceAdminService->importReference_getImportedService = importReference_getImportedService;
 
-			properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+                remoteServiceAdminService->importRegistration_close = remoteServiceAdmin_removeImportedService;
+                remoteServiceAdminService->importRegistration_getException = importRegistration_getException;
+                remoteServiceAdminService->importRegistration_getImportReference = importRegistration_getImportReference;
+                char *uuid = NULL;
 
-			status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
+                properties_pt props = properties_create();
+                bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
+                size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
 
-			if (status == CELIX_SUCCESS) {
-				status = bundleContext_registerService(context, OSGI_RSA_REMOTE_SERVICE_ADMIN, remoteServiceAdminService, NULL, &activator->registration);
-				printf("RSA: service registration succeeded\n");
-			} else {
-				properties_destroy(props);
-				printf("RSA: service registration failed\n");
-			}
 
-			activator->adminService = remoteServiceAdminService;
+                // we do not need a scope cause we want to be informed about all wiringEndpointsAdded (imported and exported)
+                char scope[len + 1];
+                sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
+                properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+
+                status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
+
+                if (status == CELIX_SUCCESS) {
+                    status = bundleContext_registerService(context, OSGI_RSA_REMOTE_SERVICE_ADMIN, remoteServiceAdminService, NULL, &activator->registration);
+                    printf("RSA: service registration succeeded\n");
+                } else {
+                    properties_destroy(props);
+                    printf("RSA: service registration failed\n");
+                }
+
+                activator->adminService = remoteServiceAdminService;
+            }
 		}
 	}
 
@@ -123,8 +140,11 @@ celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) 
 	struct activator *activator = userData;
 
 	remoteServiceAdmin_stop(activator->admin);
-	serviceRegistration_unregister(activator->registration);
-	activator->registration = NULL;
+
+	if (activator->registration != NULL) {
+        serviceRegistration_unregister(activator->registration);
+        activator->registration = NULL;
+    }
 
 	remoteServiceAdmin_destroy(&activator->admin);
 	free(activator->adminService);
@@ -142,5 +162,21 @@ celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt contex
 	free(activator);
 
 	return status;
+}
+
+
+static celix_status_t bundleActivator_createWTMTracker(struct activator *activator, service_tracker_pt *tracker) {
+    celix_status_t status = CELIX_SUCCESS;
+
+    service_tracker_customizer_pt customizer = NULL;
+
+    status = serviceTrackerCustomizer_create(activator->admin, remoteServiceAdmin_wtmAdding,
+            remoteServiceAdmin_wtmAdded, remoteServiceAdmin_wtmModified, remoteServiceAdmin_wtmRemoved, &customizer);
+
+    if (status == CELIX_SUCCESS) {
+        status = serviceTracker_create(activator->admin->context, INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, customizer, tracker);
+    }
+
+    return status;
 }
 

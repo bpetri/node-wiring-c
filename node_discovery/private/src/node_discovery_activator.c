@@ -83,7 +83,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 		printf("NODE_DISCOVERY: no framework UUID defined?!\n");
 	} else {
 		size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
-		wiring_endpoint_listener_pt wEndpointListener = calloc(1, sizeof(struct wiring_endpoint_listener));
+		wiring_endpoint_listener_pt wEndpointListener = calloc(1, sizeof(*wEndpointListener));
 
 		if (wEndpointListener) {
 			char scope[len + 1];
@@ -99,15 +99,18 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			properties_set(props, "NODE_DISCOVERY", "true");
 			properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
-			status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
-
-			if (status == CELIX_SUCCESS) {
-				status = serviceTracker_open(activator->wiringEndpointListenerTracker);
-			}
 
 			if (status == CELIX_SUCCESS) {
 				status = node_discovery_start(activator->node_discovery);
 			}
+
+            if (status == CELIX_SUCCESS) {
+                status = serviceTracker_open(activator->wiringEndpointListenerTracker);
+            }
+
+            if (status == CELIX_SUCCESS) {
+                status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
+            }
 		} else {
 			status = CELIX_ENOMEM;
 		}

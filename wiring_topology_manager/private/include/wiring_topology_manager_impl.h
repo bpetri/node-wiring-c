@@ -19,6 +19,12 @@ celix_status_t wiringTopologyManager_waAdded(void *handle, service_reference_pt 
 celix_status_t wiringTopologyManager_waModified(void *handle, service_reference_pt reference, void *service);
 celix_status_t wiringTopologyManager_waRemoved(void *handle, service_reference_pt reference, void *service);
 
+celix_status_t wiringTopologyManager_wiringEndpointListenerAdding(void *handle, service_reference_pt reference, void **service);
+celix_status_t wiringTopologyManager_wiringEndpointListenerAdded(void *handle, service_reference_pt reference, void *service);
+celix_status_t wiringTopologyManager_wiringEndpointListenerModified(void *handle, service_reference_pt reference, void *service);
+celix_status_t wiringTopologyManager_wiringEndpointListenerRemoved(void *handle, service_reference_pt reference, void *service);
+
+
 celix_status_t wiringTopologyManager_WiringEndpointAdded(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_endpoint_description_pt endpoint, char *matchedFilter);
 

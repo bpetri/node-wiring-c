@@ -325,8 +325,7 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
 celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	wiring_endpoint_listener_pt wep = (wiring_endpoint_listener_pt) handle;
-	node_discovery_pt node_discovery = (node_discovery_pt) wep->handle;
+	node_discovery_pt node_discovery = (node_discovery_pt) handle;
 	char* wEndpointWireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
 	status = celixThreadMutex_lock(&node_discovery->ownNodeMutex);
@@ -370,6 +369,7 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 	node_discovery_pt node_discovery = handle;
 	char* wEndpointWireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 	int i = 0;
+
 
 	celixThreadMutex_lock(&node_discovery->ownNodeMutex);
 	celixThreadMutex_lock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
@@ -417,7 +417,7 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 	filter_pt filter = filter_create(scope);
 
 	if (nodeDiscoveryListener != NULL && strcmp(nodeDiscoveryListener, "true") == 0) {
-		//printf("NODE_DISCOVERY: Ignoring my WiringEndpointListener\n");
+		printf("NODE_DISCOVERY: Ignoring my WiringEndpointListener\n");
 	} else {
 		celixThreadMutex_lock(&nodeDiscovery->discoveredNodesMutex);
 
