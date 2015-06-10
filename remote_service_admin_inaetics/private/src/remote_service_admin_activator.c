@@ -174,7 +174,7 @@ static celix_status_t bundleActivator_createWTMTracker(struct activator *activat
             remoteServiceAdmin_wtmAdded, remoteServiceAdmin_wtmModified, remoteServiceAdmin_wtmRemoved, &customizer);
 
     if (status == CELIX_SUCCESS) {
-        status = serviceTracker_create(activator->admin->context, INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, customizer, tracker);
+        status = serviceTracker_create(activator->admin->context, (char*) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, customizer, tracker);
     }
 
     return status;

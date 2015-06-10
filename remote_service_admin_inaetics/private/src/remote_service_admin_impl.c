@@ -222,8 +222,7 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
 celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
     celix_status_t status = CELIX_SUCCESS;
 
-    wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
-    remote_service_admin_pt admin = (remote_service_admin_pt) listener->handle;
+    remote_service_admin_pt admin = (remote_service_admin_pt) handle;
 
     char* ownUuid = NULL;
     char* wireId = NULL;
@@ -370,133 +369,6 @@ static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_
     return status;
 }
 
-celix_status_t remoteServiceAdmin_exportService2(remote_service_admin_pt admin, char *serviceId, properties_pt properties, array_list_pt *registrations, wiring_topology_manager_service_pt wtmService) {
-    celix_status_t status = CELIX_SUCCESS;
-    arrayList_create(registrations);
-    array_list_pt references = NULL;
-    service_reference_pt reference = NULL;
-    char filter[256];
-
-    snprintf(filter, 256, "(%s=%s)", (char *) OSGI_FRAMEWORK_SERVICE_ID, serviceId);
-
-    bundleContext_getServiceReferences(admin->context, NULL, filter, &references);
-    if (arrayList_size(references) >= 1) {
-        reference = arrayList_get(references, 0);
-    }
-
-    if (references != NULL) {
-        arrayList_destroy(references);
-    }
-
-    if (reference == NULL) {
-        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_ERROR, "ERROR: expected a reference for service id %s.", serviceId);
-        return CELIX_ILLEGAL_STATE;
-    }
-
-    char *exports = NULL;
-    char *provided = NULL;
-    serviceReference_getProperty(reference, (char *) OSGI_RSA_SERVICE_EXPORTED_INTERFACES, &exports);
-    serviceReference_getProperty(reference, (char *) OSGI_FRAMEWORK_OBJECTCLASS, &provided);
-
-    if (exports == NULL || provided == NULL) {
-        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_WARNING, "RSA: No Services to export.");
-    } else {
-        array_list_pt interfaces = NULL;
-
-        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: Export services (%s)", exports);
-        arrayList_create(&interfaces);
-        if (strcmp(utils_stringTrim(exports), "*") == 0) {
-            char *save_ptr = NULL;
-            char *interface = strtok_r(provided, ",", &save_ptr);
-            while (interface != NULL) {
-                arrayList_add(interfaces, utils_stringTrim(interface));
-                interface = strtok_r(NULL, ",", &save_ptr);
-            }
-        } else {
-            char *provided_save_ptr = NULL;
-            char *pinterface = strtok_r(provided, ",", &provided_save_ptr);
-            while (pinterface != NULL) {
-                char *exports_save_ptr = NULL;
-                char *einterface = strtok_r(exports, ",", &exports_save_ptr);
-                while (einterface != NULL) {
-                    if (strcmp(einterface, pinterface) == 0) {
-                        arrayList_add(interfaces, einterface);
-                    }
-                    einterface = strtok_r(NULL, ",", &exports_save_ptr);
-                }
-                pinterface = strtok_r(NULL, ",", &provided_save_ptr);
-            }
-        }
-
-        if (status == CELIX_SUCCESS && wtmService != NULL) {
-
-            /// bt only if endpint not yet installed!
-            // install endpoint
-            if (arrayList_size(interfaces) != 0) {
-                int iter = 0;
-                for (iter = 0; iter < arrayList_size(interfaces) && (status == CELIX_SUCCESS); iter++) {
-                    char *interface = arrayList_get(interfaces, iter);
-                    export_registration_pt registration = NULL;
-
-                    exportRegistration_create(admin->loghelper, reference, NULL, admin, admin->context, &registration);
-
-                    arrayList_add(*registrations, registration);
-
-                    status = remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
-
-                    if (status == CELIX_SUCCESS) {
-                        status = exportRegistration_open(registration);
-                    }
-
-                    if (status == CELIX_SUCCESS) {
-                        status = exportRegistration_startTracking(registration);
-                    } else {
-                        exportRegistration_destroy(&registration);
-                    }
-                }
-
-                if (status == CELIX_SUCCESS) {
-                    celixThreadMutex_lock(&admin->exportedServicesLock);
-                    hashMap_put(admin->exportedServices, reference, *registrations);
-                    celixThreadMutex_unlock(&admin->exportedServicesLock);
-
-                    if (properties == NULL) {
-                        properties = properties_create();
-
-                        unsigned int size = 0;
-                        char **keys;
-
-                        serviceReference_getPropertyKeys(reference, &keys, &size);
-                        int i = 0;
-                        for (; i < size; i++) {
-                            char *key = keys[i];
-                            char *value = NULL;
-                            serviceReference_getProperty(reference, key, &value);
-
-                            properties_set(properties, key, value);
-                        }
-
-                        free(keys);
-                    }
-                    char* wireId = NULL;
-
-                    if (wtmService->exportWiringEndpoint(wtmService->manager, properties, &wireId) != CELIX_SUCCESS) {
-                        properties_destroy(properties);
-                        printf("RSA: Installation of Callback failed\n");
-                    }
-                }
-            }
-
-        } else {
-            printf("RSA: Could not retrieve WTM service reference.\n");
-        }
-
-        arrayList_destroy(interfaces);
-    }
-    return status;
-
-}
-
 celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, char *serviceId, properties_pt properties, array_list_pt *registrations) {
     celix_status_t status = CELIX_SUCCESS;
     arrayList_create(registrations);
@@ -570,17 +442,11 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
                     arrayList_add(*registrations, registration);
 
-                    status = remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
-
-                    if (status == CELIX_SUCCESS) {
-                        status = exportRegistration_open(registration);
-                    }
-
-                    if (status == CELIX_SUCCESS) {
-                        status = exportRegistration_startTracking(registration);
-                    } else {
-                        exportRegistration_destroy(&registration);
-                    }
+                    // if the endpoint installation fails, we still continue to track the endpoint
+                    // allowing a manual installation (e.g. via deployment admin) as bundle
+                    remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
+                    exportRegistration_open(registration);
+                    exportRegistration_startTracking(registration);
                 }
 
                 if (status == CELIX_SUCCESS) {
@@ -613,7 +479,7 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
                     int size = arrayList_size(localWTMs);
                     if (size == 0) {
-                        printf("RSA: No WTM available yet.");
+                        printf("RSA: No WTM available yet.\n");
                     }
                     int iter;
                     for (iter = 0; iter < size; iter++) {
@@ -755,35 +621,34 @@ celix_status_t remoteServiceAdmin_importService(remote_service_admin_pt admin, e
     char* wireId = properties_get(endpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
     if (wireId == NULL) {
-        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_WARNING, "RSA: Missing WireId for service %s", endpointDescription->service);
+        printf("RSA: Missing WireId for service %s", endpointDescription->service);
     } else {
-        void* service = NULL;
-        wiring_topology_manager_service_pt wtmService = NULL;
-        service_reference_pt wtmServiceRef = NULL;
 
-        status = bundleContext_getServiceReference(admin->context, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, &wtmServiceRef);
+        import_registration_factory_pt registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
 
-        if (bundleContext_getService(admin->context, wtmServiceRef, &service) == CELIX_SUCCESS) {
-            wtmService = (wiring_topology_manager_service_pt) service;
+        // check whether we already have a registration_factory registered in the hashmap
+        if (registration_factory == NULL) {
+            status = importRegistrationFactory_install(admin->loghelper, endpointDescription->service, admin->context, &registration_factory);
+            if (status == CELIX_SUCCESS) {
+                hashMap_put(admin->importedServices, endpointDescription, registration_factory);
+            }
         }
 
-        // if the dereferenced instance is null then we know the service has been removed
-        if (wtmService != NULL) {
+        array_list_pt localWTMs = NULL;
+        remoteServiceAdmin_getWTMs(admin, &localWTMs);
+
+        int size = arrayList_size(localWTMs);
+        if (size == 0) {
+            printf("RSA: No WTM available yet.\n");
+        }
+        int iter;
+        for (iter = 0; iter < size; iter++) {
+            wiring_topology_manager_service_pt wtmService = arrayList_get(localWTMs, iter);
             properties_pt rsaProperties = properties_create();
 
             properties_set(rsaProperties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 
             if (wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
-
-                import_registration_factory_pt registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
-
-                // check whether we already have a registration_factory registered in the hashmap
-                if (registration_factory == NULL) {
-                    status = importRegistrationFactory_install(admin->loghelper, endpointDescription->service, admin->context, &registration_factory);
-                    if (status == CELIX_SUCCESS) {
-                        hashMap_put(admin->importedServices, endpointDescription->service, registration_factory);
-                    }
-                }
 
                 // factory available
                 if (status != CELIX_SUCCESS || (registration_factory->trackedFactory == NULL)) {
@@ -814,9 +679,9 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
 
     celixThreadMutex_lock(&admin->importedServicesLock);
 
-    registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
+    registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription);
 
-// factory available
+    // factory available
     if ((registration_factory == NULL) || (registration_factory->trackedFactory == NULL)) {
         logHelper_log(admin->loghelper, OSGI_LOGSERVICE_ERROR, "RSA: Error while retrieving registration factory for imported service %s", endpointDescription->service);
     } else {
@@ -830,7 +695,7 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
             serviceTracker_close(registration_factory->proxyFactoryTracker);
             importRegistrationFactory_close(registration_factory);
 
-            hashMap_remove(admin->importedServices, endpointDescription->service);
+            hashMap_remove(admin->importedServices, endpointDescription);
 
             importRegistrationFactory_destroy(&registration_factory);
         }
@@ -867,9 +732,6 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
             char *json_data = json_dumps(root, 0);
 
             status = wiringSendService->send(wiringSendService, json_data, reply, &replyStatus);
-
-            printf("RSA: %s sent\n", request);
-            printf("RSA: %s received\n", *reply);
         }
     }
 
@@ -1006,20 +868,58 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
     remote_service_admin_pt admin = handle;
     wiring_topology_manager_service_pt wtmService = (wiring_topology_manager_service_pt) service;
 
-    printf("RSA: Added WTM");
+    printf("RSA: Added WTM\n");
 
     status = celixThreadMutex_lock(&admin->wtmListLock);
     arrayList_add(admin->wtmList, wtmService);
     status = celixThreadMutex_unlock(&admin->wtmListLock);
 
-    // add already exported services to new rsa
+    // add already imported services to new wtm
+    status = celixThreadMutex_lock(&admin->importedServicesLock);
+    hash_map_iterator_pt importedServicesIterator = hashMapIterator_create(admin->importedServices);
+    while (hashMapIterator_hasNext(importedServicesIterator)) {
+        hash_map_entry_pt entry = hashMapIterator_nextEntry(importedServicesIterator);
+        endpoint_description_pt endpointDescription = (endpoint_description_pt) hashMapEntry_getKey(entry);
+        import_registration_factory_pt registration_factory = (import_registration_factory_pt) hashMapEntry_getValue(entry);
+
+        properties_pt rsaProperties = properties_create();
+        /* get WireId */
+        char* wireId = properties_get(endpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+        if (wireId == NULL) {
+            printf("RSA: Missing WireId for service %s\n", endpointDescription->service);
+        } else {
+            properties_set(rsaProperties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
+
+            if (wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
+
+                // factory available
+                if (status != CELIX_SUCCESS || (registration_factory->trackedFactory == NULL)) {
+                    logHelper_log(admin->loghelper, OSGI_LOGSERVICE_WARNING, "RSA: no proxyFactory available.");
+                    if (status == CELIX_SUCCESS) {
+                        status = CELIX_SERVICE_EXCEPTION;
+                    }
+                } else {
+                    import_registration_pt registration;
+                    // we create an importRegistration per imported service
+                    importRegistration_create(endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send, admin->context, &registration);
+                    registration_factory->trackedFactory->registerProxyService(registration_factory->trackedFactory->factory, endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send);
+
+                    arrayList_add(registration_factory->registrations, registration);
+                }
+            }
+        }
+    }
+
+    status = celixThreadMutex_unlock(&admin->importedServicesLock);
+
+    // add already exported services to new wtm
     status = celixThreadMutex_lock(&admin->exportedServicesLock);
     hash_map_iterator_pt exportedServicesIterator = hashMapIterator_create(admin->exportedServices);
 
     while (hashMapIterator_hasNext(exportedServicesIterator)) {
         hash_map_entry_pt entry = hashMapIterator_nextEntry(exportedServicesIterator);
         service_reference_pt reference = hashMapEntry_getKey(entry);
-        char *serviceId = NULL;
         char* wireId = NULL;
 
         properties_pt properties = properties_create();
@@ -1057,7 +957,7 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
 celix_status_t remoteServiceAdmin_wtmModified(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;
 
-    // Nop...
+// Nop...
 
     return status;
 }
@@ -1065,7 +965,7 @@ celix_status_t remoteServiceAdmin_wtmModified(void * handle, service_reference_p
 celix_status_t remoteServiceAdmin_wtmRemoved(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;
 
-    // NYI
+// NYI
 
     return status;
 }

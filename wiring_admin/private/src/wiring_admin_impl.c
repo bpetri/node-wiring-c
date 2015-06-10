@@ -474,6 +474,10 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
 
 			printf("WIRING_ADMIN: SEND SERVICE sucessfully registered w/ wireId %s\n", wireId);
 		}
+		else {
+            printf("WIRING_ADMIN: could not register SEND SERVICE w/ wireId %s\n", wireId);
+
+		}
 	}
 
 	return status;
@@ -512,7 +516,6 @@ static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char 
 
 	char* url = properties_get(sendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_HTTP_URL_KEY);
 
-	printf("WA: SEND TO URL %s w/ request %s\n", url, request);
 	CURL *curl;
 	CURLcode res;
 

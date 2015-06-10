@@ -300,8 +300,7 @@ static celix_status_t wiringTopologyManager_WiringAdminServiceImportWiringEndpoi
 /* Functions for wiring endpoint listener */
 celix_status_t wiringTopologyManager_WiringEndpointAdded(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
     celix_status_t status = CELIX_SUCCESS;
-    wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
-    wiring_topology_manager_pt manager = (wiring_topology_manager_pt) listener->handle;
+    wiring_topology_manager_pt manager = (wiring_topology_manager_pt) handle;
 
     celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
 
@@ -319,8 +318,7 @@ celix_status_t wiringTopologyManager_WiringEndpointAdded(void *handle, wiring_en
 
 celix_status_t wiringTopologyManager_WiringEndpointRemoved(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
     celix_status_t status = CELIX_SUCCESS;
-    wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
-    wiring_topology_manager_pt manager = (wiring_topology_manager_pt) listener->handle;
+    wiring_topology_manager_pt manager = (wiring_topology_manager_pt) handle;
 
     celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
     char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
@@ -707,8 +705,7 @@ celix_status_t wiringTopologyManager_wiringEndpointListenerAdded(void* handle, s
         filter_destroy(filter);
     }
     else {
-
-        printf("WTM: Ignoring Non-Discovery ENDPOINT_LISTENER");
+        printf("WTM: Ignoring Non-Discovery ENDPOINT_LISTENER\n");
     }
 
     return status;
@@ -764,7 +761,7 @@ static celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(w
                 filter_match(filter, wEndpoint->properties, &matchResult);
 
                 if (matchResult) {
-                    status = listener->wiringEndpointAdded(listener, wEndpoint, scope);
+                    status = listener->wiringEndpointAdded(listener->handle, wEndpoint, scope);
                 }
 
                 filter_destroy(filter);

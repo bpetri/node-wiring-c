@@ -306,9 +306,9 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
 				if (matchResult) {
 					bundleContext_getService(node_discovery->context, reference, (void**) &listener);
 					if (wEndpointAdded) {
-						listener->wiringEndpointAdded(listener, wEndpoint, scope);
+						listener->wiringEndpointAdded(listener->handle, wEndpoint, scope);
 					} else {
-						listener->wiringEndpointRemoved(listener, wEndpoint, scope);
+						listener->wiringEndpointRemoved(listener->handle, wEndpoint, scope);
 					}
 				}
 				filter_destroy(filter);
@@ -352,6 +352,10 @@ celix_status_t node_discovery_wiringEndpointAdded(void *handle, wiring_endpoint_
 			if (status == CELIX_SUCCESS) { // No problems , we can add the new Wiring Endpoint Description
 				arrayList_add(node_discovery->ownNode->wiring_ep_descriptions_list, wEndpoint);
 				etcdWatcher_addOwnNode(node_discovery->watcher);
+			    printf("NODE_DISCOVERY: wireId %s ADDED \n", wEndpointWireId);
+			}
+			else {
+                printf("NODE_DISCOVERY: wireId %s NOT ADDED %s \n", wEndpointWireId, status);
 			}
 
 			status = celixThreadMutex_unlock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
@@ -436,10 +440,8 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 				filter_match(filter, ep_desc->properties, &matchResult);
 				if (matchResult) {
 					wiring_endpoint_listener_pt listener = service;
-
-					listener->wiringEndpointAdded(listener, ep_desc, NULL);
+					listener->wiringEndpointAdded(listener->handle, ep_desc, NULL);
 				}
-
 			}
 
 			celixThreadMutex_unlock(&node_desc->wiring_ep_desc_list_lock);
