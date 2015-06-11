@@ -294,8 +294,7 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
 celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter) {
     celix_status_t status = CELIX_SUCCESS;
 
-    wiring_endpoint_listener_pt listener = (wiring_endpoint_listener_pt) handle;
-    remote_service_admin_pt admin = (remote_service_admin_pt) listener->handle;
+    remote_service_admin_pt admin = (remote_service_admin_pt) handle;
     char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
     // only in case of import
