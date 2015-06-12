@@ -38,8 +38,8 @@ celix_status_t node_discovery_destroy(node_discovery_pt node_discovery);
 celix_status_t node_discovery_start(node_discovery_pt node_discovery);
 celix_status_t node_discovery_stop(node_discovery_pt node_discovery);
 
-celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, char* key, node_description_pt node_desc);
-celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, char* key);
+celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, node_description_pt node_desc);
+celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, node_description_pt removeRequest);
 
 celix_status_t node_discovery_wiringEndpointListenerAdding(void * handle, service_reference_pt reference, void **service);
 celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service_reference_pt reference, void * service);

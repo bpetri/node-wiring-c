@@ -96,10 +96,20 @@ static celix_status_t etcdWatcher_addAlreadyExistingNodes(node_discovery_pt node
                 char* key = endpointArray[i];
                 int modIndex = 0;
 
-                status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &nodeDescription, &modIndex);
+                // check for key ..
+
+                char action[MAX_ACTION_LENGTH];
+                char etcdValue[MAX_VALUE_LENGTH];
+
+                if (etcd_get(key, &etcdValue[0], &action[0], &modIndex) != true) {
+                    printf("NODE_DISCOVERY: Could not retrieve value for %s\n", key);
+                    status = CELIX_ILLEGAL_STATE;
+                }
 
                 if (status == CELIX_SUCCESS) {
-                    node_discovery_addNode(node_discovery, &key[0], nodeDescription);
+                    status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &etcdValue[0], &nodeDescription);
+
+                    node_discovery_addNode(node_discovery, nodeDescription);
                 } else {
                     printf("ERROR while retrieving endpoint from %s\n", key);
                 }
@@ -171,54 +181,48 @@ celix_status_t etcdWatcher_addOwnNode(etcd_watcher_pt watcher) {
 }
 
 // gets everything from provided key
-celix_status_t etcdWatcher_getWiringEndpointFromKey(node_discovery_pt node_discovery, char* etcdKey, node_description_pt* nodeDescription, int* modIndex) {
+celix_status_t etcdWatcher_getWiringEndpointFromKey(node_discovery_pt node_discovery, char* etcdKey, char* etcdValue, node_description_pt* nodeDescription) {
 
     celix_status_t status = CELIX_SUCCESS;
 
-    char etcdValue[MAX_VALUE_LENGTH];
-    char action[MAX_ACTION_LENGTH];
+    char rootPath[MAX_ROOTNODE_LENGTH];
+    char expr[MAX_LOCALNODE_LENGTH];
+    char zoneId[MAX_LOCALNODE_LENGTH];
+    char nodeId[MAX_LOCALNODE_LENGTH];
+    char wireId[MAX_LOCALNODE_LENGTH];
 
-    if (etcd_get(etcdKey, etcdValue, &action[0], modIndex) != true) {
-        printf("NODE_DISCOVERY: Could not retrieve value for %s\n", etcdKey);
+    etcdWatcher_getRootPath(node_discovery->context, &rootPath[0]);
+
+    snprintf(expr, MAX_LOCALNODE_LENGTH, "/%s/%%[^/]/%%[^/]/%%[^/].*", rootPath);
+
+    int foundItems = sscanf(etcdKey, expr, &zoneId[0], &nodeId[0], &wireId[0]);
+
+    if (foundItems != 3) {
+        printf("NODE_DISCOVERY: Could not find zone/node/wire (key: %s) \n", etcdKey);
         status = CELIX_ILLEGAL_STATE;
     } else {
-        char rootPath[MAX_ROOTNODE_LENGTH];
-        char expr[MAX_LOCALNODE_LENGTH];
-        char zoneId[MAX_LOCALNODE_LENGTH];
-        char nodeId[MAX_LOCALNODE_LENGTH];
-        char wireId[MAX_LOCALNODE_LENGTH];
+        properties_pt nodeDescProperties = properties_create();
+        status = nodeDescription_create(nodeId, zoneId, nodeDescProperties, nodeDescription);
 
-        etcdWatcher_getRootPath(node_discovery->context, &rootPath[0]);
+        if (status == CELIX_SUCCESS) {
+            wiring_endpoint_description_pt wiringEndpointDescription = NULL;
+            properties_pt wiringDescProperties = properties_create();
 
-        snprintf(expr, MAX_LOCALNODE_LENGTH, "/%s/%%[^/]/%%[^/]/%%[^/].*", rootPath);
-
-        int foundItems = sscanf(etcdKey, expr, &zoneId[0], &nodeId[0], &wireId[0]);
-
-        if (foundItems != 3) {
-            printf("NODE_DISCOVERY: Could not find zone/node/wire (key: %s) \n", etcdKey);
-            status = CELIX_ILLEGAL_STATE;
-        } else {
-            properties_pt nodeDescProperties = properties_create();
-            status = nodeDescription_create(nodeId, zoneId, nodeDescProperties, nodeDescription);
-
-            if (status == CELIX_SUCCESS) {
-                wiring_endpoint_description_pt wiringEndpointDescription = NULL;
-                properties_pt wiringDescProperties = properties_create();
-
-                if (wiringEndpoint_properties_load(&etcdValue[0], wiringDescProperties) != CELIX_SUCCESS) {
+            if (etcdValue != NULL) {
+                if (wiringEndpoint_properties_load(etcdValue, wiringDescProperties) != CELIX_SUCCESS) {
                     printf("NODE_DISCOVERY:  Error while loading wiring properties");
                 }
-
-                status = wiringEndpointDescription_create(wireId, wiringDescProperties, &wiringEndpointDescription);
-
-                if (status == CELIX_SUCCESS) {
-                    celixThreadMutex_lock(&(*nodeDescription)->wiring_ep_desc_list_lock);
-                    arrayList_add((*nodeDescription)->wiring_ep_descriptions_list, wiringEndpointDescription);
-                    celixThreadMutex_unlock(&(*nodeDescription)->wiring_ep_desc_list_lock);
-                }
-            } else {
-                printf("NODE_DISCOVERY:  Could not create Node description\n");
             }
+
+            status = wiringEndpointDescription_create(wireId, wiringDescProperties, &wiringEndpointDescription);
+
+            if (status == CELIX_SUCCESS) {
+                celixThreadMutex_lock(&(*nodeDescription)->wiring_ep_desc_list_lock);
+                arrayList_add((*nodeDescription)->wiring_ep_descriptions_list, wiringEndpointDescription);
+                celixThreadMutex_unlock(&(*nodeDescription)->wiring_ep_desc_list_lock);
+            }
+        } else {
+            printf("NODE_DISCOVERY:  Could not create Node description\n");
         }
     }
 
@@ -249,32 +253,41 @@ static void* etcdWatcher_run(void* data) {
         char value[MAX_VALUE_LENGTH];
         char preValue[MAX_VALUE_LENGTH];
         char action[MAX_ACTION_LENGTH];
+        int modIndex;
 
         celixThreadMutex_unlock(&watcher->watcherLock);
 
-        if (etcd_watch(rootPath, highestModified + 1, &action[0], &preValue[0], &value[0], &rkey[0]) == true) {
+        if (etcd_watch(rootPath, highestModified + 1, &action[0], &preValue[0], &value[0], &rkey[0], &modIndex) == true) {
             if ((strcmp(action, "set") == 0) || (strcmp(action, "create") == 0)) {
                 node_description_pt nodeDescription = NULL;
-                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], &nodeDescription, &highestModified);
+                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], &value[0], &nodeDescription);
 
                 if (status == CELIX_SUCCESS) {
-                    node_discovery_addNode(node_discovery, &rkey[0], nodeDescription);
+                    node_discovery_addNode(node_discovery, nodeDescription);
                 }
             } else if (strcmp(action, "delete") == 0) {
-                node_discovery_removeNode(node_discovery, &rkey[0]);
+                node_description_pt nodeDescription = NULL;
+                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], NULL, &nodeDescription);
+                if (status == CELIX_SUCCESS) {
+                    node_discovery_removeNode(node_discovery, nodeDescription);
+                }
             } else if (strcmp(action, "expire") == 0) {
-                node_discovery_removeNode(node_discovery, &rkey[0]);
+                node_description_pt nodeDescription = NULL;
+                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], NULL, &nodeDescription);
+                if (status == CELIX_SUCCESS) {
+                    node_discovery_removeNode(node_discovery, nodeDescription);
+                }
             } else if (strcmp(action, "update") == 0) {
                 node_description_pt nodeDescription = NULL;
-                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], &nodeDescription, &highestModified);
+                celix_status_t status = etcdWatcher_getWiringEndpointFromKey(node_discovery, &rkey[0], &value[0], &nodeDescription);
 
                 if (status == CELIX_SUCCESS) {
-                    node_discovery_addNode(node_discovery, &rkey[0], nodeDescription);
+                    node_discovery_addNode(node_discovery, nodeDescription);
                 }
             } else {
                 fw_log(logger, OSGI_FRAMEWORK_LOG_INFO, "Unexpected action: %s", action);
             }
-            highestModified++;
+            highestModified = modIndex;
         }
         /* prevent busy waiting, in case etcd_watch returns false */
         else if (time(NULL) - timeBeforeWatch <= (DEFAULT_ETCD_TTL / 2)) {
