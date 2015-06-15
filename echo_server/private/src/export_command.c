@@ -231,16 +231,11 @@ void exportCommand_execute(command_pt command, char *line, void (*out)(char *), 
 		// if the dereferenced instance is null then we know the service has been removed
 		if (wtmService != NULL) {
 			export_command_pt exportCommand = (export_command_pt) command->handle;
-			char* wireId = NULL;
 
-			if (wtmService->exportWiringEndpoint(wtmService->manager, exportCommand->props, &wireId) != CELIX_SUCCESS) {
+			if (wtmService->exportWiringEndpoint(wtmService->manager, exportCommand->props) != CELIX_SUCCESS) {
 				printf("ECHO_SERVER: Installation of Callback failed\n");
 			} else {
 				printf("ECHO_SERVER: Receive callback successfully installed\n");
-			}
-
-			if (wireId != NULL) {
-				free(wireId);
 			}
 
 		} else {

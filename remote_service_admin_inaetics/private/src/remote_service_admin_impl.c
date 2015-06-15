@@ -268,23 +268,15 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
 
                         properties_set(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 
+
                         free(reference);
                     }
                 }
+                status = remoteServiceAdmin_registerReceive(admin, wireId);
             }
 
             hashMapIterator_destroy(exportedServicesIterator);
             status = celixThreadMutex_unlock(&admin->exportedServicesLock);
-        } else {
-            // only in case of import
-            status = remoteServiceAdmin_registerReceive(admin, wireId);
-
-            if (status == CELIX_SUCCESS) {
-                printf("RSA: remoteServiceAdmin_addImportedWiringEndpoint w/ wireId %s \n", wireId);
-            } else {
-                arrayList_removeElement(admin->exportedWires, wireId);
-                printf("RSA: remoteServiceAdmin_addImportedWiringEndpoint could not register Receive w/ %s \n", wireId);
-            }
         }
     }
 
@@ -483,13 +475,11 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
                     int iter;
                     for (iter = 0; iter < size; iter++) {
                         wiring_topology_manager_service_pt wtmService = arrayList_get(localWTMs, iter);
-                        char* wireId;
 
-                        if (wtmService->exportWiringEndpoint(wtmService->manager, properties, &wireId) != CELIX_SUCCESS) {
-                            properties_destroy(properties);
+                        if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
                             printf("RSA: Wire export failed\n");
                         } else {
-                            printf("RSA: Wire sucessfully exported w/ wireID %s.\n", wireId);
+                            printf("RSA: Wire sucessfully exported \n");
                         }
                     }
 
@@ -919,7 +909,6 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
     while (hashMapIterator_hasNext(exportedServicesIterator)) {
         hash_map_entry_pt entry = hashMapIterator_nextEntry(exportedServicesIterator);
         service_reference_pt reference = hashMapEntry_getKey(entry);
-        char* wireId = NULL;
 
         properties_pt properties = properties_create();
 
@@ -938,11 +927,7 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
 
         free(keys);
 
-        if (wtmService->exportWiringEndpoint(wtmService->manager, properties, &wireId) != CELIX_SUCCESS) {
-            printf("RSA: Installation of Callback failed\n");
-        } else {
-            printf("RSA: export  of wiring ednpoint failed\n");
-        }
+        wtmService->exportWiringEndpoint(wtmService->manager, properties);
 
     }
 
