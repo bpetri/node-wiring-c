@@ -256,7 +256,6 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 			char *response = NULL;
 
 			hash_map_iterator_pt iter = hashMapIterator_create(admin->wiringReceiveServices);
-
 			while (hashMapIterator_hasNext(iter)) {
 				array_list_pt wiringReceiveServiceList = hashMapIterator_nextValue(iter);
 
@@ -355,10 +354,15 @@ static celix_status_t wiringAdmin_wiringReceiveRemoved(void * handle, service_re
 	if (wiringReceiveServiceList != NULL) {
 		arrayList_removeElement(wiringReceiveServiceList, wiringReceiveService);
 
+        printf("WA: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s removed!\n", wiringReceiveService->wireId);
+
 		if (arrayList_size(wiringReceiveServiceList) == 0) {
 			arrayList_destroy(wiringReceiveServiceList);
 			hashMap_remove(admin->wiringReceiveServices, wiringReceiveService->wireId);
 		}
+	}
+	else {
+	    printf("WA: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s not found!\n", wiringReceiveService->wireId);
 	}
 
 	return status;

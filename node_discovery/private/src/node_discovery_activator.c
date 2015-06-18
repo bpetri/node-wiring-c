@@ -99,17 +99,16 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			properties_set(props, "NODE_DISCOVERY", "true");
 			properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
-
-			if (status == CELIX_SUCCESS) {
-				status = node_discovery_start(activator->node_discovery);
-			}
-
             if (status == CELIX_SUCCESS) {
                 status = serviceTracker_open(activator->wiringEndpointListenerTracker);
             }
 
             if (status == CELIX_SUCCESS) {
                 status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
+            }
+
+            if (status == CELIX_SUCCESS) {
+                status = node_discovery_start(activator->node_discovery);
             }
 		} else {
 			status = CELIX_ENOMEM;

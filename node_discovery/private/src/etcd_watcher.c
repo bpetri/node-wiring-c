@@ -105,13 +105,10 @@ static celix_status_t etcdWatcher_addAlreadyExistingNodes(node_discovery_pt node
                     printf("NODE_DISCOVERY: Could not retrieve value for %s\n", key);
                     status = CELIX_ILLEGAL_STATE;
                 }
-
-                if (status == CELIX_SUCCESS) {
+                else  {
                     status = etcdWatcher_getWiringEndpointFromKey(node_discovery, key, &etcdValue[0], &nodeDescription);
 
                     node_discovery_addNode(node_discovery, nodeDescription);
-                } else {
-                    printf("ERROR while retrieving endpoint from %s\n", key);
                 }
 
                 *highestModified = modIndex;
@@ -290,12 +287,12 @@ static void* etcdWatcher_run(void* data) {
             highestModified = modIndex;
         }
         /* prevent busy waiting, in case etcd_watch returns false */
-        else if (time(NULL) - timeBeforeWatch <= (DEFAULT_ETCD_TTL / 2)) {
-            sleep(DEFAULT_ETCD_TTL / 2);
+        else if (time(NULL) - timeBeforeWatch <= (DEFAULT_ETCD_TTL / 4)) {
+            sleep(DEFAULT_ETCD_TTL / 4);
         }
 
         // update own framework uuid
-        if (time(NULL) - timeBeforeWatch > (DEFAULT_ETCD_TTL / 2)) {
+        if (time(NULL) - timeBeforeWatch > (DEFAULT_ETCD_TTL / 4)) {
             etcdWatcher_addOwnNode(watcher);
 
             // perform additional full-sync

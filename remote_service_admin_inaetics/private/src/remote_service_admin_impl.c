@@ -209,6 +209,7 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
 
         }
 
+        free(request);
         json_decref(root);
 
         //celixThreadMutex_unlock(&admin->exportedServicesLock);
@@ -268,7 +269,6 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
 
                         properties_set(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 
-
                         free(reference);
                     }
                 }
@@ -289,7 +289,38 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
     remote_service_admin_pt admin = (remote_service_admin_pt) handle;
     char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-    // only in case of import
+    // go through all references to find correct serviceId
+    status = celixThreadMutex_lock(&admin->exportedServicesLock);
+    hash_map_iterator_pt exportedServicesIterator = hashMapIterator_create(admin->exportedServices);
+
+    while (hashMapIterator_hasNext(exportedServicesIterator)) {
+        int i = 0;
+        char* id_str;
+
+        hash_map_entry_pt entry = hashMapIterator_nextEntry(exportedServicesIterator);
+        service_reference_pt reference = hashMapEntry_getKey(entry);
+        array_list_pt registrations = hashMapEntry_getValue(entry);
+        for (i = 0; i < arrayList_size(registrations); i++) {
+
+            export_registration_pt export = arrayList_get(registrations, i);
+            export_reference_pt reference = NULL;
+            endpoint_description_pt endpoint = NULL;
+
+            exportRegistration_getExportReference(export, &reference);
+            exportReference_getExportedEndpoint(reference, &endpoint);
+
+            char* regWireId = properties_get(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+            if (strcmp(wireId, regWireId) == 0) {
+                exportRegistration_close(export);
+            }
+            free(reference);
+        }
+    }
+
+    hashMapIterator_destroy(exportedServicesIterator);
+
+
     status = remoteServiceAdmin_unregisterReceive(admin, wireId);
 
     return status;
@@ -298,12 +329,12 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
 static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt admin, char* wireId) {
     celix_status_t status = CELIX_SUCCESS;
 
-    printf("RSA: registerReceive w/ wireId %s\n", wireId);
-
     wiring_receive_service_pt wiringReceiveService = calloc(1, sizeof(*wiringReceiveService));
 
     if (!wiringReceiveService) {
         status = CELIX_ENOMEM;
+    } else if (hashMap_containsKey(admin->wiringReceiveServices, wireId)) {
+        printf("RSA: registerReceivewireId %s already known\n", wireId);
     } else {
         properties_pt props = properties_create();
         service_registration_pt wiringReceiveServiceRegistration = NULL;
@@ -313,6 +344,8 @@ static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt
         wiringReceiveService->handle = admin;
         wiringReceiveService->receive = remoteServiceAdmin_receive;
         wiringReceiveService->wireId = wireId;
+
+        printf("RSA: registerReceive w/ wireId %s\n", wireId);
 
         status = bundleContext_registerService(admin->context, (char *) INAETICS_WIRING_RECEIVE_SERVICE, wiringReceiveService, props, &wiringReceiveServiceRegistration);
 
@@ -721,6 +754,9 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
             char *json_data = json_dumps(root, 0);
 
             status = wiringSendService->send(wiringSendService, json_data, reply, &replyStatus);
+
+            free(json_data);
+            json_decref(root);
         }
     }
 

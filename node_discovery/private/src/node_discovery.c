@@ -173,64 +173,70 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, node_des
     celix_status_t status = CELIX_SUCCESS;
 
     celixThreadMutex_lock(&node_discovery->discoveredNodesMutex);
+    celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
 
-    node_description_pt availableNodeDesc = hashMap_get(node_discovery->discoveredNodes, node_desc->nodeId);
+    node_description_pt availableNodeDesc = NULL;
     array_list_pt availWEPDescList = NULL;
 
-    if (availableNodeDesc == NULL) {
-        hashMap_put(node_discovery->discoveredNodes, strdup(node_desc->nodeId), node_desc);
-        printf("NODE_DISCOVERY: Node %s added\n", node_desc->nodeId);
-        //dump_node_description(node_desc);
+    /* check whether node is already known */
+    availableNodeDesc = hashMap_get(node_discovery->discoveredNodes, node_desc->nodeId);
+
+    if (availableNodeDesc != NULL) {
+        availWEPDescList = availableNodeDesc->wiring_ep_descriptions_list;
+
+        int size = arrayList_size(node_desc->wiring_ep_descriptions_list);
+        int i = 0;
+
+        for (i = 0; i < size; ++i) {
+            wiring_endpoint_description_pt wep = arrayList_get(node_desc->wiring_ep_descriptions_list, i);
+            char* wepWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+            bool availWEPfound = false;
+
+            if (availWEPDescList != NULL) {
+                array_list_iterator_pt availWEPDescListIter = arrayListIterator_create(availWEPDescList);
+
+                while ((arrayListIterator_hasNext(availWEPDescListIter)) && (availWEPfound == false)) {
+                    wiring_endpoint_description_pt availWEP = arrayListIterator_next(availWEPDescListIter);
+                    char* availWireId = properties_get(availWEP->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+                    if (strcmp(wepWireId, availWireId) == 0) {
+                        availWEPfound = true;
+                    }
+                }
+
+                arrayListIterator_destroy(availWEPDescListIter);
+            }
+
+            if (availWEPfound == false) {
+                printf("NODE_DISCOVERY: Adding new Wiring Endpoint %s - %s\n", node_desc->nodeId, wepWireId);
+                arrayList_add(availableNodeDesc->wiring_ep_descriptions_list, wep);
+                node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
+            }
+        }
+        celixThreadMutex_unlock(&node_desc->wiring_ep_desc_list_lock);
+        nodeDescription_destroy(node_desc, false);
 
     } else {
-        availWEPDescList = availableNodeDesc->wiring_ep_descriptions_list;
+        hashMap_put(node_discovery->discoveredNodes, strdup(node_desc->nodeId), node_desc);
+        printf("NODE_DISCOVERY: Node %s added\n", node_desc->nodeId);
+
+        array_list_iterator_pt availWEPDescListIter = arrayListIterator_create(node_desc->wiring_ep_descriptions_list);
+
+        while (arrayListIterator_hasNext(availWEPDescListIter)) {
+            wiring_endpoint_description_pt wep = arrayListIterator_next(availWEPDescListIter);
+            char* availWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+            printf("NODE_DISCOVERY: Adding new Wiring Endpoint %s - %s\n", node_desc->nodeId, availWireId);
+
+            node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
+        }
+
+        arrayListIterator_destroy(availWEPDescListIter);
+        celixThreadMutex_unlock(&node_desc->wiring_ep_desc_list_lock);
     }
 
     celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
 
-    celixThreadMutex_lock(&node_desc->wiring_ep_desc_list_lock);
-
-    int size = arrayList_size(node_desc->wiring_ep_descriptions_list);
-    int i = 0;
-
-    for (i = 0; i < size; ++i) {
-        wiring_endpoint_description_pt wep = arrayList_get(node_desc->wiring_ep_descriptions_list, i);
-        char* wepWireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
-        bool availWEPfound = false;
-
-        if (availWEPDescList != NULL) {
-            array_list_iterator_pt availWEPDescListIter = arrayListIterator_create(availWEPDescList);
-
-            while ((arrayListIterator_hasNext(availWEPDescListIter)) && (availWEPfound == false)) {
-                wiring_endpoint_description_pt availWEP = arrayListIterator_next(availWEPDescListIter);
-                char* availWireId = properties_get(availWEP->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
-
-                if (strcmp(wepWireId, availWireId) == 0) {
-                    availWEPfound = true;
-                }
-            }
-
-            arrayListIterator_destroy(availWEPDescListIter);
-        }
-
-        if (availWEPfound == false) {
-            printf("\nNODE_DISCOVERY: Adding new Wiring Endpoint %s - %s\n", node_desc->nodeId, wepWireId);
-
-            node_discovery_informWiringEndpointListeners(node_discovery, wep, true);
-        } else {
-            if (arrayList_removeElement(node_desc->wiring_ep_descriptions_list, wep)) {
-                wiringEndpointDescription_destroy(&wep);
-                --size;
-                --i;
-            }
-        }
-    }
-
-    celixThreadMutex_unlock(&node_desc->wiring_ep_desc_list_lock);
-
-    if (availableNodeDesc != NULL) {
-        nodeDescription_destroy(node_desc, false);
-    }
 
     return status;
 }
