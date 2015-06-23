@@ -302,6 +302,9 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
     remote_service_admin_pt admin = (remote_service_admin_pt) handle;
     char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
+    array_list_pt exportRegistrationList = NULL;
+    arrayList_create(&exportRegistrationList);
+
     // go through all references to find correct serviceId
     status = celixThreadMutex_lock(&admin->exportedServicesLock);
     hash_map_iterator_pt exportedServicesIterator = hashMapIterator_create(admin->exportedServices);
@@ -311,7 +314,6 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
         char* id_str;
 
         hash_map_entry_pt entry = hashMapIterator_nextEntry(exportedServicesIterator);
-        service_reference_pt reference = hashMapEntry_getKey(entry);
         array_list_pt registrations = hashMapEntry_getValue(entry);
         for (i = 0; i < arrayList_size(registrations); i++) {
 
@@ -325,7 +327,7 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
             char* regWireId = properties_get(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
             if (strcmp(wireId, regWireId) == 0) {
-                exportRegistration_stopTracking(export);
+                arrayList_add(exportRegistrationList, export);
             }
             free(reference);
         }
@@ -334,6 +336,16 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
     hashMapIterator_destroy(exportedServicesIterator);
 
     status = celixThreadMutex_unlock(&admin->exportedServicesLock);
+
+    int i;
+
+    for (i = 0; i < arrayList_size(exportRegistrationList); i++) {
+        export_registration_pt export = arrayList_get(exportRegistrationList, i);
+        exportRegistration_stopTracking(export);
+    }
+
+    arrayList_destroy(exportRegistrationList);
+
 
     status = remoteServiceAdmin_unregisterReceive(admin, wireId);
 
