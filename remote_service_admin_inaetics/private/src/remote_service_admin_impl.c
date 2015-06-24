@@ -530,6 +530,7 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
                     int size = arrayList_size(localWTMs);
                     if (size == 0) {
                         printf("RSA: No WTM available yet.\n");
+                        status = CELIX_SERVICE_EXCEPTION;
                     }
                     int iter;
                     for (iter = 0; iter < size; iter++) {
@@ -607,6 +608,8 @@ celix_status_t remoteServiceAdmin_installEndpoint(remote_service_admin_pt admin,
     properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED, "true");
     properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED_CONFIGS, (char*) CONFIGURATION_TYPE);
 
+    printf("RSA: INSTALL ENDPOINT w/ UUID %s\n", endpoint_uuid);
+
     endpoint_description_pt endpointDescription = NULL;
     remoteServiceAdmin_createEndpointDescription(admin, reference, endpointProperties, interface, &endpointDescription);
 
@@ -669,7 +672,8 @@ celix_status_t remoteServiceAdmin_importService(remote_service_admin_pt admin, e
     char* wireId = properties_get(endpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
     if (wireId == NULL) {
-        printf("RSA: Missing WireId for service %s", endpointDescription->service);
+        printf("RSA: Missing WireId for service %s\n", endpointDescription->service);
+        status = CELIX_SERVICE_EXCEPTION;
     } else {
 
         import_registration_factory_pt registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
@@ -735,6 +739,7 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
     } else {
         registration_factory->trackedFactory->unregisterProxyService(registration_factory->trackedFactory->factory, endpointDescription);
         arrayList_removeElement(registration_factory->registrations, registration);
+
         importRegistration_destroy(registration);
 
         if (arrayList_isEmpty(registration_factory->registrations)) {
@@ -862,6 +867,7 @@ static celix_status_t remoteServiceAdmin_sendServiceRemoved(void * handle, servi
 
     wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
     char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+    printf("RSA: remove Wiring Endpoint w/ wireId %s\n", wireId);
 
     hashMap_remove(admin->sendServices, wireId);
 
@@ -907,7 +913,9 @@ celix_status_t remoteServiceAdmin_getWTMs(remote_service_admin_pt admin, array_l
 
 celix_status_t remoteServiceAdmin_wtmAdding(void * handle, service_reference_pt reference, void **service) {
     celix_status_t status = CELIX_SUCCESS;
-    remote_service_admin_pt admin = handle;
+
+    struct activator* activator = (struct activator*) handle;
+    remote_service_admin_pt admin = (remote_service_admin_pt) activator->admin;
 
     status = bundleContext_getService(admin->context, reference, service);
 
@@ -916,7 +924,9 @@ celix_status_t remoteServiceAdmin_wtmAdding(void * handle, service_reference_pt 
 
 celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;
-    remote_service_admin_pt admin = handle;
+    struct activator* activator = (struct activator*) handle;
+    remote_service_admin_pt admin = activator->admin;
+
     wiring_topology_manager_service_pt wtmService = (wiring_topology_manager_service_pt) service;
 
     printf("RSA: Added WTM\n");
@@ -997,8 +1007,16 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
 
     status = celixThreadMutex_unlock(&admin->exportedServicesLock);
 
+    // publish rsa service after wtm is available
+    if(activator->registration == NULL) {
+        status = bundleContext_registerService(admin->context, OSGI_RSA_REMOTE_SERVICE_ADMIN, activator->adminService, NULL, &activator->registration);
+    }
+
     return status;
 }
+
+
+
 
 celix_status_t remoteServiceAdmin_wtmModified(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;

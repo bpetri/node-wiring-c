@@ -18,16 +18,7 @@
 static celix_status_t bundleActivator_createWTMTracker(struct activator *activator, service_tracker_pt *tracker);
 
 
-struct activator {
-	remote_service_admin_pt admin;
-	remote_service_admin_service_pt adminService;
-	service_registration_pt registration;
 
-	wiring_endpoint_listener_pt wEndpointListener;
-	service_registration_pt wEndpointListenerRegistration;
-
-    service_tracker_pt wtmTracker;
-};
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -111,20 +102,15 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
                 bundleContext_getProperty(context, OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
                 size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
 
-
-                // we do not need a scope cause we want to be informed about all wiringEndpointsAdded (imported and exported)
                 char scope[len + 1];
                 sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
                 properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
 
                 status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
 
-                if (status == CELIX_SUCCESS) {
-                    status = bundleContext_registerService(context, OSGI_RSA_REMOTE_SERVICE_ADMIN, remoteServiceAdminService, NULL, &activator->registration);
-                    printf("RSA: service registration succeeded\n");
-                } else {
+                if (status != CELIX_SUCCESS) {
                     properties_destroy(props);
-                    printf("RSA: service registration failed\n");
+                    printf("RSA: service registration of wiring endpoint listener failed\n");
                 }
 
                 activator->adminService = remoteServiceAdminService;
@@ -171,7 +157,7 @@ static celix_status_t bundleActivator_createWTMTracker(struct activator *activat
 
     service_tracker_customizer_pt customizer = NULL;
 
-    status = serviceTrackerCustomizer_create(activator->admin, remoteServiceAdmin_wtmAdding,
+    status = serviceTrackerCustomizer_create(activator, remoteServiceAdmin_wtmAdding,
             remoteServiceAdmin_wtmAdded, remoteServiceAdmin_wtmModified, remoteServiceAdmin_wtmRemoved, &customizer);
 
     if (status == CELIX_SUCCESS) {

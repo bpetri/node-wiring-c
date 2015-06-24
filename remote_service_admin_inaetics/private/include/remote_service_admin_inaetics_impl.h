@@ -7,9 +7,20 @@
 
 #include "remote_service_admin_impl.h"
 #include "wiring_endpoint_description.h"
+#include "wiring_endpoint_listener.h"
 #include "log_helper.h"
 #include "service_tracker.h"
 
+struct activator {
+    remote_service_admin_pt admin;
+    remote_service_admin_service_pt adminService;
+    service_registration_pt registration;
+
+    wiring_endpoint_listener_pt wEndpointListener;
+    service_registration_pt wEndpointListenerRegistration;
+
+    service_tracker_pt wtmTracker;
+};
 
 struct remote_service_admin {
 	bundle_context_pt context;
