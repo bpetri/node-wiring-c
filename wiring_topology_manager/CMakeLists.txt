@@ -18,8 +18,11 @@ SET(BUNDLE_NAME "apache_celix_wiring_topology_manager")
 
 
 bundle(org.inaetics.wiring_topology_manager.WiringTopologyManager SOURCES
-	private/src/wiring_topology_manager.c
-	private/src/wiring_topology_manager_activator.c
+	private/src/wtm.c
+	private/src/wtm_activator.c
+	private/src/wtm_wadmin_tracker.c
+	private/src/wtm_wendpointlistener_tracker.c
+	
    ${PROJECT_SOURCE_DIR}/wiring_common/private/src/wiring_endpoint_description.c
 )
 

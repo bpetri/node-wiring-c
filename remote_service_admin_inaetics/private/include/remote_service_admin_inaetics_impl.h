@@ -19,6 +19,7 @@ struct activator {
     wiring_endpoint_listener_pt wEndpointListener;
     service_registration_pt wEndpointListenerRegistration;
 
+    service_tracker_pt eplTracker;
     service_tracker_pt wtmTracker;
 };
 
@@ -40,6 +41,9 @@ struct remote_service_admin {
 	service_tracker_pt sendServicesTracker;
 	hash_map_pt sendServices;
 
+    celix_thread_mutex_t listenerListLock;
+    hash_map_pt listenerList;
+
     celix_thread_mutex_t wtmListLock;
     array_list_pt wtmList;
 };
@@ -48,6 +52,11 @@ celix_status_t remoteServiceAdmin_destroy(remote_service_admin_pt *admin);
 celix_status_t remoteServiceAdmin_stop(remote_service_admin_pt admin);
 celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
 celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endpoint_description_pt wEndpoint, char *matchedFilter);
+
+celix_status_t remoteServiceAdmin_endpointListenerAdding(void *handle, service_reference_pt reference, void **service);
+celix_status_t remoteServiceAdmin_endpointListenerAdded(void *handle, service_reference_pt reference, void *service);
+celix_status_t remoteServiceAdmin_endpointListenerModified(void *handle, service_reference_pt reference, void *service);
+celix_status_t remoteServiceAdmin_endpointListenerRemoved(void *handle, service_reference_pt reference, void *service);
 
 celix_status_t remoteServiceAdmin_wtmAdding(void *handle, service_reference_pt reference, void **service);
 celix_status_t remoteServiceAdmin_wtmAdded(void *handle, service_reference_pt reference, void *service);

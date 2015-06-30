@@ -53,6 +53,8 @@ static celix_status_t remoteServiceAdmin_sendServiceRemoved(void * handle, servi
 
 static celix_status_t remoteServiceAdmin_wireIdEquals(void *a, void *b, bool *equals);
 
+celix_status_t remoteServiceAdmin_notifyListenersEndpointAdded(remote_service_admin_pt admin, array_list_pt registrations);
+
 celix_status_t remoteServiceAdmin_installEndpoint(remote_service_admin_pt admin, export_registration_pt registration, service_reference_pt reference, char *interface);
 celix_status_t remoteServiceAdmin_createEndpointDescription(remote_service_admin_pt admin, service_reference_pt reference, properties_pt endpointProperties, char *interface,
         endpoint_description_pt *description);
@@ -74,9 +76,11 @@ celix_status_t remoteServiceAdmin_create(bundle_context_pt context, remote_servi
         (*admin)->wiringReceiveServiceRegistrations = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->sendServicesTracker = NULL;
         (*admin)->sendServices = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
+        (*admin)->listenerList = hashMap_create(serviceReference_hashCode, NULL, serviceReference_equals2, NULL);
 
         arrayList_createWithEquals(remoteServiceAdmin_wireIdEquals, &((*admin)->exportedWires));
 
+        status = celixThreadMutex_create(&(*admin)->listenerListLock, NULL);
         celixThreadMutex_create(&(*admin)->wtmListLock, NULL);
         celixThreadMutex_create(&(*admin)->exportedServicesLock, NULL);
         celixThreadMutex_create(&(*admin)->importedServicesLock, NULL);
@@ -112,7 +116,6 @@ celix_status_t remoteServiceAdmin_destroy(remote_service_admin_pt *admin) {
 
 celix_status_t remoteServiceAdmin_stop(remote_service_admin_pt admin) {
     celix_status_t status = CELIX_SUCCESS;
-
 
     array_list_pt exportRegistrationList = NULL;
 
@@ -193,8 +196,6 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
     json_error_t jsonError;
     json_t* root;
 
-    printf("RSA: data received: %s\n", data);
-
     root = json_loads(data, 0, &jsonError);
 
     if (root) {
@@ -215,7 +216,12 @@ static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char*
                 export_registration_pt export = arrayList_get(exports, expIt);
 
                 if (serviceId == export->endpointDescription->serviceId) {
-                    export->endpoint->handleRequest(export->endpoint->endpoint, request, response);
+                    if (export->endpoint != NULL) {
+                        export->endpoint->handleRequest(export->endpoint->endpoint, request, response);
+                    } else {
+                        printf("RSA: endpoint for serviceId %d not available\n", serviceId);
+                        status = CELIX_SERVICE_EXCEPTION;
+                    }
                     status = CELIX_SUCCESS;
                 }
             }
@@ -250,6 +256,8 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
         wireUuid = properties_get(wEndpoint->properties, (char*) OSGI_RSA_ENDPOINT_FRAMEWORK_UUID);
         exportServiceId = properties_get(wEndpoint->properties, (char*) "requested.service.id");
 
+        printf("RSA: callback received - wire available for serviceId %s\n", exportServiceId);
+
         //if uuid = own fw uuid -> exported, otherwise imported
         if (strcmp(ownUuid, wireUuid) == 0) {
             if (!arrayList_contains(admin->exportedWires, wireId)) {
@@ -281,14 +289,20 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
                         exportReference_getExportedEndpoint(reference, &endpoint);
 
                         properties_set(endpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
-
                         free(reference);
                     }
+
+                    status = remoteServiceAdmin_registerReceive(admin, wireId);
+                    if (status == CELIX_SUCCESS) {
+                        // inform endpoint listener
+                        remoteServiceAdmin_notifyListenersEndpointAdded(admin, registrations);
+                    }
                 }
-                status = remoteServiceAdmin_registerReceive(admin, wireId);
+
             }
 
             hashMapIterator_destroy(exportedServicesIterator);
+
             status = celixThreadMutex_unlock(&admin->exportedServicesLock);
         }
     }
@@ -311,7 +325,6 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
 
     while (hashMapIterator_hasNext(exportedServicesIterator)) {
         int i = 0;
-        char* id_str;
 
         hash_map_entry_pt entry = hashMapIterator_nextEntry(exportedServicesIterator);
         array_list_pt registrations = hashMapEntry_getValue(entry);
@@ -345,7 +358,6 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
     }
 
     arrayList_destroy(exportRegistrationList);
-
 
     status = remoteServiceAdmin_unregisterReceive(admin, wireId);
 
@@ -454,7 +466,7 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
         array_list_pt interfaces = NULL;
 
-        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: Export services (%s)", exports);
+        logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: Export services (%s, %s)", serviceId, exports);
         arrayList_create(&interfaces);
         if (strcmp(utils_stringTrim(exports), "*") == 0) {
             char *save_ptr = NULL;
@@ -489,19 +501,26 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
                     export_registration_pt registration = NULL;
 
                     exportRegistration_create(admin->loghelper, reference, NULL, admin, admin->context, &registration);
-
                     arrayList_add(*registrations, registration);
 
                     // if the endpoint installation fails, we still continue to track the endpoint
                     // allowing a manual installation (e.g. via deployment admin) as bundle
+
+                    // sets the endpoint description
                     remoteServiceAdmin_installEndpoint(admin, registration, reference, interface);
+
+                    // installs the bundles
                     exportRegistration_open(registration);
+
+                    // tracks the proxy service and sets the endpoint
                     exportRegistration_startTracking(registration);
                 }
 
                 if (status == CELIX_SUCCESS) {
                     celixThreadMutex_lock(&admin->exportedServicesLock);
+
                     hashMap_put(admin->exportedServices, reference, *registrations);
+
                     celixThreadMutex_unlock(&admin->exportedServicesLock);
 
                     if (properties == NULL) {
@@ -523,7 +542,6 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
                         free(keys);
                     }
 
-                    // export wiring aamdin e
                     array_list_pt localWTMs = NULL;
                     remoteServiceAdmin_getWTMs(admin, &localWTMs);
 
@@ -538,6 +556,7 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
 
                         if (wtmService->exportWiringEndpoint(wtmService->manager, properties) != CELIX_SUCCESS) {
                             printf("RSA: Wire export failed\n");
+                            status = CELIX_SERVICE_EXCEPTION;
                         } else {
                             printf("RSA: Wire sucessfully exported \n");
                         }
@@ -553,12 +572,19 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_pt admin, c
         }
         arrayList_destroy(interfaces);
     }
-    return status;
+
+    /*
+     * we do not support sync export, exports will inform the
+     * wiring endpoint listener, which will in turn inform
+     * discovery
+     */
+
+    return CELIX_SERVICE_EXCEPTION;
 }
+
 celix_status_t remoteServiceAdmin_removeExportedService(export_registration_pt registration) {
     celix_status_t status = CELIX_SUCCESS;
     remote_service_admin_pt admin = registration->rsa;
-
     celixThreadMutex_lock(&admin->exportedServicesLock);
 
     hashMap_remove(admin->exportedServices, registration->reference);
@@ -778,13 +804,11 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
             json_t *json_request;
             json_error_t jsonError;
 
-            int replyStatus = 0;
-
             json_request = json_loads(request, 0, &jsonError);
             root = json_pack("{s:i, s:o}", "service.id", endpointDescription->serviceId, "request", json_request);
             char *json_data = json_dumps(root, 0);
 
-            status = wiringSendService->send(wiringSendService, json_data, reply, &replyStatus);
+            status = wiringSendService->send(wiringSendService, json_data, reply, replyStatus);
 
             free(json_data);
             json_decref(root);
@@ -911,6 +935,141 @@ celix_status_t remoteServiceAdmin_getWTMs(remote_service_admin_pt admin, array_l
     return status;
 }
 
+celix_status_t remoteServiceAdmin_notifyListenersEndpointAdded(remote_service_admin_pt admin, array_list_pt registrations) {
+    celix_status_t status = CELIX_SUCCESS;
+
+    hash_map_iterator_pt iter = hashMapIterator_create(admin->listenerList);
+    while (hashMapIterator_hasNext(iter)) {
+        char *scope = NULL;
+        endpoint_listener_pt epl = NULL;
+        service_reference_pt reference = hashMapIterator_nextKey(iter);
+
+        serviceReference_getProperty(reference, (char *) OSGI_ENDPOINT_LISTENER_SCOPE, &scope);
+
+        status = bundleContext_getService(admin->context, reference, (void **) &epl);
+        if (status == CELIX_SUCCESS) {
+            filter_pt filter = filter_create(scope);
+
+            int regSize = arrayList_size(registrations);
+            int regIt = 0;
+            for (; regIt < regSize; regIt++) {
+                export_registration_pt export = arrayList_get(registrations, regIt);
+
+                endpoint_description_pt endpoint = NULL;
+                export_reference_pt reference = NULL;
+
+                status = exportRegistration_getExportReference(export, &reference);
+                if (status == CELIX_SUCCESS) {
+                    status = exportReference_getExportedEndpoint(reference, &endpoint);
+                }
+
+                if (status == CELIX_SUCCESS) {
+                    bool matchResult = false;
+                    filter_match(filter, endpoint->properties, &matchResult);
+                    if (matchResult) {
+                        status = epl->endpointAdded(epl->handle, endpoint, scope);
+                    }
+                }
+            }
+
+            filter_destroy(filter);
+        }
+    }
+
+    hashMapIterator_destroy(iter);
+
+    status = celixThreadMutex_unlock(&admin->listenerListLock);
+
+}
+
+celix_status_t remoteServiceAdmin_endpointListenerAdding(void* handle, service_reference_pt reference, void** service) {
+    celix_status_t status = CELIX_SUCCESS;
+    remote_service_admin_pt admin = (remote_service_admin_pt) handle;
+
+    bundleContext_getService(admin->context, reference, service);
+
+    return status;
+}
+
+celix_status_t remoteServiceAdmin_endpointListenerAdded(void* handle, service_reference_pt reference, void* service) {
+    celix_status_t status = CELIX_SUCCESS;
+    remote_service_admin_pt admin = (remote_service_admin_pt) handle;
+    char *scope = NULL;
+
+    logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: Added ENDPOINT_LISTENER");
+
+    celixThreadMutex_lock(&admin->listenerListLock);
+    hashMap_put(admin->listenerList, reference, NULL);
+    celixThreadMutex_unlock(&admin->listenerListLock);
+
+    serviceReference_getProperty(reference, (char *) OSGI_ENDPOINT_LISTENER_SCOPE, &scope);
+
+    filter_pt filter = filter_create(scope);
+    hash_map_iterator_pt refIter = hashMapIterator_create(admin->exportedServices);
+
+    while (hashMapIterator_hasNext(refIter)) {
+
+        array_list_pt registrations = hashMapIterator_nextValue(refIter);
+
+        int arrayListSize = arrayList_size(registrations);
+        int cnt = 0;
+
+        for (; cnt < arrayListSize; cnt++) {
+            export_registration_pt export = arrayList_get(registrations, cnt);
+
+            endpoint_description_pt endpoint = NULL;
+            export_reference_pt reference = NULL;
+
+            status = exportRegistration_getExportReference(export, &reference);
+            if (status == CELIX_SUCCESS) {
+                status = exportReference_getExportedEndpoint(reference, &endpoint);
+            }
+
+            if (status == CELIX_SUCCESS) {
+                bool matchResult = false;
+                filter_match(filter, endpoint->properties, &matchResult);
+                if (matchResult) {
+                    endpoint_listener_pt listener = (endpoint_listener_pt) service;
+                    status = listener->endpointAdded(listener->handle, endpoint, scope);
+                }
+            }
+        }
+    }
+    hashMapIterator_destroy(refIter);
+
+    filter_destroy(filter);
+
+    return status;
+}
+
+celix_status_t remoteServiceAdmin_endpointListenerModified(void * handle, service_reference_pt reference, void * service) {
+    celix_status_t status;
+
+    status = remoteServiceAdmin_endpointListenerRemoved(handle, reference, service);
+    if (status == CELIX_SUCCESS) {
+        status = remoteServiceAdmin_endpointListenerAdded(handle, reference, service);
+    }
+
+    return status;
+}
+
+celix_status_t remoteServiceAdmin_endpointListenerRemoved(void * handle, service_reference_pt reference, void * service) {
+    celix_status_t status;
+    remote_service_admin_pt admin = (remote_service_admin_pt) handle;
+
+    status = celixThreadMutex_lock(&admin->listenerListLock);
+
+    if (status == CELIX_SUCCESS) {
+        if (hashMap_remove(admin->listenerList, reference)) {
+            logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "EndpointListener Removed");
+        }
+
+        status = celixThreadMutex_unlock(&admin->listenerListLock);
+    }
+
+    return status;
+}
+
 celix_status_t remoteServiceAdmin_wtmAdding(void * handle, service_reference_pt reference, void **service) {
     celix_status_t status = CELIX_SUCCESS;
 
@@ -1008,20 +1167,17 @@ celix_status_t remoteServiceAdmin_wtmAdded(void * handle, service_reference_pt r
     status = celixThreadMutex_unlock(&admin->exportedServicesLock);
 
     // publish rsa service after wtm is available
-    if(activator->registration == NULL) {
+    if (activator->registration == NULL) {
         status = bundleContext_registerService(admin->context, OSGI_RSA_REMOTE_SERVICE_ADMIN, activator->adminService, NULL, &activator->registration);
     }
 
     return status;
 }
 
-
-
-
 celix_status_t remoteServiceAdmin_wtmModified(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;
 
-// Nop...
+    // Nop...
 
     return status;
 }
@@ -1029,7 +1185,7 @@ celix_status_t remoteServiceAdmin_wtmModified(void * handle, service_reference_p
 celix_status_t remoteServiceAdmin_wtmRemoved(void * handle, service_reference_pt reference, void * service) {
     celix_status_t status = CELIX_SUCCESS;
 
-// NYI
+    // NYI
 
     return status;
 }

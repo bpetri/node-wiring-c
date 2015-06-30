@@ -15,60 +15,61 @@
 #include "wiring_topology_manager.h"
 #include "wiring_endpoint_listener.h"
 
+static celix_status_t bundleActivator_createEPLTracker(struct activator *activator, service_tracker_pt *tracker);
 static celix_status_t bundleActivator_createWTMTracker(struct activator *activator, service_tracker_pt *tracker);
 
-
-
-
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator;
+    celix_status_t status = CELIX_SUCCESS;
+    struct activator *activator;
 
-	activator = calloc(1, sizeof(*activator));
-	if (!activator) {
-		status = CELIX_ENOMEM;
-	} else {
-		activator->admin = NULL;
-		activator->registration = NULL;
-	    activator->wtmTracker = NULL;
+    activator = calloc(1, sizeof(*activator));
+    if (!activator) {
+        status = CELIX_ENOMEM;
+    } else {
+        activator->admin = NULL;
+        activator->registration = NULL;
+        activator->eplTracker = NULL;
+        activator->wtmTracker = NULL;
 
-		*userData = activator;
-	}
+        *userData = activator;
+    }
 
-	return status;
+    return status;
 }
 
 celix_status_t bundleActivator_start(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
-	remote_service_admin_service_pt remoteServiceAdminService = NULL;
+    celix_status_t status = CELIX_SUCCESS;
+    struct activator *activator = userData;
+    remote_service_admin_service_pt remoteServiceAdminService = NULL;
 
-	status = remoteServiceAdmin_create(context, &activator->admin);
-	if (status == CELIX_SUCCESS) {
-		remoteServiceAdminService = calloc(1, sizeof(*remoteServiceAdminService));
+    status = remoteServiceAdmin_create(context, &activator->admin);
+    if (status == CELIX_SUCCESS) {
+        remoteServiceAdminService = calloc(1, sizeof(*remoteServiceAdminService));
 
-		wiring_endpoint_listener_pt wEndpointListener = (wiring_endpoint_listener_pt) calloc(1, sizeof(*wEndpointListener));
+        wiring_endpoint_listener_pt wEndpointListener = (wiring_endpoint_listener_pt) calloc(1, sizeof(*wEndpointListener));
 
-		if (!remoteServiceAdminService || !wEndpointListener) {
+        if (!remoteServiceAdminService || !wEndpointListener) {
 
-			if (wEndpointListener) {
-				free(wEndpointListener);
-			}
-			if (remoteServiceAdminService) {
-				free(remoteServiceAdminService);
-			}
+            if (wEndpointListener) {
+                free(wEndpointListener);
+            }
+            if (remoteServiceAdminService) {
+                free(remoteServiceAdminService);
+            }
 
-			status = CELIX_ENOMEM;
-		} else {
-           status = bundleActivator_createWTMTracker(activator, &activator->wtmTracker);
+            status = CELIX_ENOMEM;
+        } else {
+            status = bundleActivator_createEPLTracker(activator, &activator->eplTracker);
+
+            if (status != CELIX_SUCCESS) {
+                printf("RSA: Creation of EPLTracker failed\n");
+            } else {
+                status = bundleActivator_createWTMTracker(activator, &activator->wtmTracker);
+            }
 
             if (status != CELIX_SUCCESS) {
                 printf("RSA: Creation of WTMTracker failed\n");
-            }
-            else {
-
-                serviceTracker_open(activator->wtmTracker);
-
+            } else {
                 wEndpointListener->handle = (void*) activator->admin;
                 wEndpointListener->wiringEndpointAdded = remoteServiceAdmin_addWiringEndpoint;
                 wEndpointListener->wiringEndpointRemoved = remoteServiceAdmin_removeWiringEndpoint;
@@ -103,9 +104,17 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
                 size_t len = 11 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
 
                 char scope[len + 1];
+                // check that we are not informed by node_discovery
                 sprintf(scope, "(%s=%s)", OSGI_RSA_ENDPOINT_FRAMEWORK_UUID, uuid);
                 properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+                properties_set(props, "RSA", "true");
 
+                activator->adminService = remoteServiceAdminService;
+
+                serviceTracker_open(activator->eplTracker);
+
+                // wiring endpoint listener needs to be before wtm tracker, otherwise rsa will not be informed about
+                // wiring endpoints
                 status = bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wEndpointListenerRegistration);
 
                 if (status != CELIX_SUCCESS) {
@@ -113,52 +122,66 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
                     printf("RSA: service registration of wiring endpoint listener failed\n");
                 }
 
-                activator->adminService = remoteServiceAdminService;
-            }
-		}
-	}
+                serviceTracker_open(activator->wtmTracker);
 
-	return status;
+
+            }
+        }
+    }
+
+    return status;
 }
 
 celix_status_t bundleActivator_stop(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
+    celix_status_t status = CELIX_SUCCESS;
+    struct activator *activator = userData;
 
-
-	if (activator->registration != NULL) {
+    if (activator->registration != NULL) {
         serviceRegistration_unregister(activator->registration);
         activator->registration = NULL;
     }
 
     remoteServiceAdmin_stop(activator->admin);
 
-	remoteServiceAdmin_destroy(&activator->admin);
-	free(activator->adminService);
+    remoteServiceAdmin_destroy(&activator->admin);
+    free(activator->adminService);
 
-	serviceRegistration_unregister(activator->wEndpointListenerRegistration);
-	free(activator->wEndpointListener);
+    serviceRegistration_unregister(activator->wEndpointListenerRegistration);
+    free(activator->wEndpointListener);
 
-	return status;
+    return status;
 }
 
 celix_status_t bundleActivator_destroy(void * userData, bundle_context_pt context) {
-	celix_status_t status = CELIX_SUCCESS;
-	struct activator *activator = userData;
+    celix_status_t status = CELIX_SUCCESS;
+    struct activator *activator = userData;
 
-	free(activator);
+    free(activator);
 
-	return status;
+    return status;
 }
 
+static celix_status_t bundleActivator_createEPLTracker(struct activator *activator, service_tracker_pt *tracker) {
+    celix_status_t status;
+
+    service_tracker_customizer_pt customizer = NULL;
+
+    status = serviceTrackerCustomizer_create(activator->admin, remoteServiceAdmin_endpointListenerAdding, remoteServiceAdmin_endpointListenerAdded, remoteServiceAdmin_endpointListenerModified,
+            remoteServiceAdmin_endpointListenerRemoved, &customizer);
+
+    if (status == CELIX_SUCCESS) {
+        status = serviceTracker_create(activator->admin->context, (char *) OSGI_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
+    }
+
+    return status;
+}
 
 static celix_status_t bundleActivator_createWTMTracker(struct activator *activator, service_tracker_pt *tracker) {
     celix_status_t status = CELIX_SUCCESS;
 
     service_tracker_customizer_pt customizer = NULL;
 
-    status = serviceTrackerCustomizer_create(activator, remoteServiceAdmin_wtmAdding,
-            remoteServiceAdmin_wtmAdded, remoteServiceAdmin_wtmModified, remoteServiceAdmin_wtmRemoved, &customizer);
+    status = serviceTrackerCustomizer_create(activator, remoteServiceAdmin_wtmAdding, remoteServiceAdmin_wtmAdded, remoteServiceAdmin_wtmModified, remoteServiceAdmin_wtmRemoved, &customizer);
 
     if (status == CELIX_SUCCESS) {
         status = serviceTracker_create(activator->admin->context, (char*) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, customizer, tracker);

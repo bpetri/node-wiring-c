@@ -237,7 +237,6 @@ celix_status_t node_discovery_addNode(node_discovery_pt node_discovery, node_des
 
     celixThreadMutex_unlock(&node_discovery->discoveredNodesMutex);
 
-
     return status;
 }
 
@@ -305,15 +304,17 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
                 service_reference_pt reference = hashMapEntry_getKey(entry);
                 wiring_endpoint_listener_pt listener = NULL;
 
-                char *scope = NULL;
+                char* scope = NULL;
+                char* rsa = NULL;
                 serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
+                serviceReference_getProperty(reference, (char *) "RSA", &rsa);
 
                 filter_pt filter = filter_create(scope);
                 bool matchResult = false;
 
                 filter_match(filter, wEndpoint->properties, &matchResult);
 
-                if (matchResult) {
+                if (matchResult && rsa == NULL) {
                     bundleContext_getService(node_discovery->context, reference, (void**) &listener);
                     if (wEndpointAdded) {
                         listener->wiringEndpointAdded(listener->handle, wEndpoint, scope);
@@ -399,7 +400,7 @@ celix_status_t node_discovery_wiringEndpointRemoved(void *handle, wiring_endpoin
 
     celixThreadMutex_unlock(&(node_discovery->ownNode->wiring_ep_desc_list_lock));
 
-// Node Description update in ETCD is done by the etcd_watcher_run thread periodically
+    // Node Description update in ETCD is done by the etcd_watcher_run thread periodically
 
     celixThreadMutex_unlock(&node_discovery->ownNodeMutex);
 

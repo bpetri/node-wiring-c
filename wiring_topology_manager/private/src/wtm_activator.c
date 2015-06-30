@@ -30,7 +30,6 @@ struct activator {
     service_registration_pt wiringTopologyManagerServiceRegistration;
 };
 
-static celix_status_t bundleActivator_createEPLTracker(struct activator *activator, service_tracker_pt *tracker);
 static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *activator, service_tracker_pt *tracker);
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
@@ -52,45 +51,16 @@ celix_status_t bundleActivator_create(bundle_context_pt context, void **userData
 
     status = wiringTopologyManager_create(context, &activator->manager);
     if (status == CELIX_SUCCESS) {
-        status = bundleActivator_createEPLTracker(activator, &activator->endpointListenerTracker);
+        status = wiringTopologyManager_createWiringEndpointListenerTracker(activator->manager, &activator->endpointListenerTracker);
+
         if (status == CELIX_SUCCESS) {
-            status = bundleActivator_createInaeticsWATracker(activator, &(activator->inaeticsWiringAdminTracker));
+            status = wiringTopologyManager_createWaTracker(activator->manager, &activator->inaeticsWiringAdminTracker);
 
             if (status == CELIX_SUCCESS) {
                 *userData = activator;
             }
 
         }
-    }
-
-    return status;
-}
-
-static celix_status_t bundleActivator_createEPLTracker(struct activator *activator, service_tracker_pt *tracker) {
-    celix_status_t status;
-
-    service_tracker_customizer_pt customizer = NULL;
-
-    status = serviceTrackerCustomizer_create(activator->manager, wiringTopologyManager_wiringEndpointListenerAdding, wiringTopologyManager_wiringEndpointListenerAdded,
-            wiringTopologyManager_wiringEndpointListenerModified, wiringTopologyManager_wiringEndpointListenerRemoved, &customizer);
-
-    if (status == CELIX_SUCCESS) {
-        status = serviceTracker_create(activator->context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, customizer, tracker);
-    }
-
-    return status;
-}
-
-static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *activator, service_tracker_pt *tracker) {
-    celix_status_t status = CELIX_SUCCESS;
-
-    service_tracker_customizer_pt customizer = NULL;
-
-    status = serviceTrackerCustomizer_create(activator->manager, wiringTopologyManager_waAdding, wiringTopologyManager_waAdded, wiringTopologyManager_waModified, wiringTopologyManager_waRemoved,
-            &customizer);
-
-    if (status == CELIX_SUCCESS) {
-        status = serviceTracker_create(activator->context, (char*) INAETICS_WIRING_ADMIN, customizer, tracker);
     }
 
     return status;
@@ -146,14 +116,14 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
     bundleContext_registerService(context, (char *) INAETICS_WIRING_TOPOLOGY_MANAGER_SERVICE, wiringTopologyManagerService, wtm_props, &activator->wiringTopologyManagerServiceRegistration);
 
-
-    if (status == CELIX_SUCCESS) {
-        serviceTracker_open(activator->inaeticsWiringAdminTracker);
-    }
-
+    // this need to be first, otherwise we miss the endpoint info from the added wiring admins
     if (status == CELIX_SUCCESS) {
         printf("WTM: endpointListenerTracker initiated.\n");
         status = serviceTracker_open(activator->endpointListenerTracker);
+    }
+
+    if (status == CELIX_SUCCESS) {
+        serviceTracker_open(activator->inaeticsWiringAdminTracker);
     }
 
     return status;
