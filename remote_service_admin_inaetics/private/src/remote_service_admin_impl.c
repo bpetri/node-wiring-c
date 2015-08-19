@@ -980,6 +980,7 @@ celix_status_t remoteServiceAdmin_notifyListenersEndpointAdded(remote_service_ad
 
     status = celixThreadMutex_unlock(&admin->listenerListLock);
 
+    return status;
 }
 
 celix_status_t remoteServiceAdmin_endpointListenerAdding(void* handle, service_reference_pt reference, void** service) {
