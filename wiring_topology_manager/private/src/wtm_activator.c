@@ -30,7 +30,6 @@ struct activator {
     service_registration_pt wiringTopologyManagerServiceRegistration;
 };
 
-static celix_status_t bundleActivator_createInaeticsWATracker(struct activator *activator, service_tracker_pt *tracker);
 
 celix_status_t bundleActivator_create(bundle_context_pt context, void **userData) {
     celix_status_t status = CELIX_SUCCESS;

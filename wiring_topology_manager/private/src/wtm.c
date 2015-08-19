@@ -497,8 +497,6 @@ celix_status_t wiringTopologyManager_notifyListenersWiringEndpointAdded(wiring_t
 
     status = celixThreadMutex_lock(&manager->listenerListLock);
 
-    char* serviceId = properties_get(wEndpoint->properties, "requested.service.id");
-
     if (status == CELIX_SUCCESS) {
         hash_map_iterator_pt iter = hashMapIterator_create(manager->listenerList);
         while (hashMapIterator_hasNext(iter)) {
