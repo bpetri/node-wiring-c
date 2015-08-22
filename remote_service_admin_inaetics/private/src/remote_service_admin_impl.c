@@ -71,7 +71,7 @@ celix_status_t remoteServiceAdmin_create(bundle_context_pt context, remote_servi
         arrayList_create(&(*admin)->wtmList);
 
         (*admin)->exportedServices = hashMap_create(NULL, NULL, NULL, NULL);
-        (*admin)->importedServices = hashMap_create(NULL, NULL, NULL, NULL);
+        (*admin)->importedServices = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->wiringReceiveServices = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->wiringReceiveServiceRegistrations = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->sendServicesTracker = NULL;
@@ -708,7 +708,7 @@ celix_status_t remoteServiceAdmin_importService(remote_service_admin_pt admin, e
         if (registration_factory == NULL) {
             status = importRegistrationFactory_install(admin->loghelper, endpointDescription->service, admin->context, &registration_factory);
             if (status == CELIX_SUCCESS) {
-                hashMap_put(admin->importedServices, endpointDescription, registration_factory);
+                hashMap_put(admin->importedServices, endpointDescription->service, registration_factory);
             }
         }
 
@@ -757,7 +757,7 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
 
     celixThreadMutex_lock(&admin->importedServicesLock);
 
-    registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription);
+    registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
 
     // factory available
     if ((registration_factory == NULL) || (registration_factory->trackedFactory == NULL)) {
@@ -769,12 +769,12 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
         importRegistration_destroy(registration);
 
         if (arrayList_isEmpty(registration_factory->registrations)) {
-            logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy.");
+            logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy of service %s.", endpointDescription->service);
 
             serviceTracker_close(registration_factory->proxyFactoryTracker);
             importRegistrationFactory_close(registration_factory);
 
-            hashMap_remove(admin->importedServices, endpointDescription);
+            hashMap_remove(admin->importedServices, endpointDescription->service);
 
             importRegistrationFactory_destroy(&registration_factory);
         }
@@ -799,6 +799,7 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
 
         if (wiringSendService == NULL) {
             printf("RSA: No SendService w/ wireId %s found.\n", wireId);
+            status = CELIX_ILLEGAL_ARGUMENT;
         } else {
             json_t *root;
             json_t *json_request;
