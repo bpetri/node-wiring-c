@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "bundle_activator.h"
 #include "service_registration.h"
@@ -59,7 +60,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 			status = bundleContext_getProperty(activator->context, (char *) OSGI_FRAMEWORK_FRAMEWORK_UUID, &uuid);
 
 			if (status != CELIX_SUCCESS) {
-				printf("WA: no framework UUID defined?!\n");
+				printf("%s: no framework UUID defined?!\n", TAG);
 			} else {
 				size_t len = 14 + strlen(OSGI_FRAMEWORK_OBJECTCLASS) + strlen(OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) + strlen(uuid);
 				char scope[len + 1];

@@ -23,6 +23,8 @@
 #define WIRING_ADMIN_PROPERTIES_CONFIG_VALUE		"inaetics.wiring.http"
 #define WIRING_ADMIN_PROPERTIES_SECURE_VALUE 		"no"
 
+#define TAG                                         "WIRING_ADMIN"
+
 struct wiring_admin {
 	bundle_context_pt context;
 

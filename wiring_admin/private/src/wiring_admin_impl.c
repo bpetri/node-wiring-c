@@ -111,7 +111,7 @@ celix_status_t wiringAdmin_startWebserver(bundle_context_pt context, wiring_admi
 
         bundleContext_getProperty(context, NODE_DISCOVERY_NODE_WA_ITF, &interface);
         if ((interface != NULL) && (wiring_getIpAddress(interface, &detectedIp) != CELIX_SUCCESS)) {
-            printf("WIRING_ADMIN: Could not retrieve IP adress for interface %s\n", interface);
+            printf("%s: Could not retrieve IP adress for interface %s\n", TAG, interface);
         }
 
         if (ip == NULL) {
@@ -145,7 +145,7 @@ celix_status_t wiringAdmin_startWebserver(bundle_context_pt context, wiring_admi
             port_counter++;
             snprintf(&newPort[0], 6, "%d", (currentPort + 1));
 
-            printf("WIRING_ADMIN: Error while starting WIRING_ADMIN server on port %s - retrying on port %s...\n", port, newPort);
+            printf("%s: Error while starting WIRING_ADMIN server on port %s - retrying on port %s...\n", TAG, port, newPort);
             port = newPort;
         }
     } while (((*admin)->ctx == NULL) && (port_counter < MAX_NUMBER_OF_RESTARTS));
@@ -153,7 +153,7 @@ celix_status_t wiringAdmin_startWebserver(bundle_context_pt context, wiring_admi
     if (ip != NULL) {
         snprintf((*admin)->url, MAX_URL_LENGTH, "http://%s:%s", ip, port);
     } else {
-        printf("WIRING_ADMIN: No IP address for HTTP Wiring Endpint set. Using %s\n", DEFAULT_WA_ADDRESS);
+        printf("%s: No IP address for HTTP Wiring Endpint set. Using %s\n", TAG, DEFAULT_WA_ADDRESS);
         snprintf((*admin)->url, MAX_URL_LENGTH, "http://%s:%s", (char*) DEFAULT_WA_ADDRESS, port);
     }
 
@@ -168,7 +168,7 @@ celix_status_t wiringAdmin_stopWebserver(wiring_admin_pt admin) {
     celix_status_t status = CELIX_SUCCESS;
 
     if (admin->ctx != NULL) {
-        printf("WIRING_ADMIN: Stopping HTTP Wiring Endpoint running at %s ...\n", admin->url);
+        printf("%s: Stopping HTTP Wiring Endpoint running at %s ...\n", TAG, admin->url);
         mg_stop(admin->ctx);
         admin->ctx = NULL;
     }
@@ -246,7 +246,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
         wiring_admin_pt admin = request_info->user_data;
 
         if (hashMap_size(admin->wiringReceiveServices) == 0) {
-            printf("WIRING_ADMIN: No wiringReceiveServices available\n");
+            printf("%s: No wiringReceiveServices available\n", TAG);
         }
 
         if (strcmp("POST", request_info->request_method) == 0) {
@@ -274,7 +274,7 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 
                     break;
                 } else {
-                    printf("WIRING_ADMIN: wiringReceiveServiceList is empty\n");
+                    printf("%s: wiringReceiveServiceList is empty\n", TAG);
                 }
             }
             hashMapIterator_destroy(iter);
@@ -291,12 +291,12 @@ static int wiringAdmin_callback(struct mg_connection *conn) {
 
             free(data);
         } else {
-            printf("WIRING_ADMIN: Received HTTP Request, but no RSA_Inaetics callback is installed. Discarding request.\n");
+            printf("%s: Received HTTP Request, but no RSA_Inaetics callback is installed. Discarding request.\n", TAG);
         }
 
         celixThreadMutex_unlock(&admin->exportedWiringEndpointLock);
     } else {
-        printf("WIRING_ADMIN: URI IS NULL\n");
+        printf("%s: Received URI is NULL\n", TAG);
     }
 
     return result;
@@ -336,7 +336,7 @@ static celix_status_t wiringAdmin_wiringReceiveAdded(void * handle, service_refe
     wiring_receive_service_pt wiringReceiveService = (wiring_receive_service_pt) service;
     array_list_pt wiringReceiveServiceList = hashMap_get(admin->wiringReceiveServices, wiringReceiveService->wireId);
 
-    printf("WIRING_ADMIN: wiringAdmin_wiringReceiveAdded, service w/ wireId %s added\n", wiringReceiveService->wireId);
+    printf("%s: wiringAdmin_wiringReceiveAdded, service w/ wireId %s added\n", TAG, wiringReceiveService->wireId);
 
     if (wiringReceiveServiceList == NULL) {
         arrayList_create(&wiringReceiveServiceList);
@@ -364,14 +364,14 @@ static celix_status_t wiringAdmin_wiringReceiveRemoved(void * handle, service_re
     if (wiringReceiveServiceList != NULL) {
         arrayList_removeElement(wiringReceiveServiceList, wiringReceiveService);
 
-        printf("WIRING_ADMIN: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s removed!\n", wiringReceiveService->wireId);
+        printf("%s: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s removed!\n", TAG, wiringReceiveService->wireId);
 
         if (arrayList_size(wiringReceiveServiceList) == 0) {
             arrayList_destroy(wiringReceiveServiceList);
             hashMap_remove(admin->wiringReceiveServices, wiringReceiveService->wireId);
         }
     } else {
-        printf("WIRING_ADMIN: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s not found!\n", wiringReceiveService->wireId);
+        printf("%s: wiringAdmin_wiringReceiveRemoved, service w/ wireId %s not found!\n", TAG, wiringReceiveService->wireId);
     }
 
     return status;
@@ -395,7 +395,7 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_en
             char* wireId = NULL;
             properties_pt props = properties_create();
 
-            printf("WIRING_ADMIN: HTTP Wiring Endpoint running at %s\n", admin->url);
+            printf("%s: HTTP Wiring Endpoint running at %s\n", TAG, admin->url);
 
             status = wiringEndpointDescription_create(NULL, props, wEndpointDescription);
 
@@ -405,7 +405,7 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_en
 
             wireId = properties_get(props, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-            printf("WIRING_ADMIN: wiringEndpointDescription_create w/ wireId %s started\n", wireId);
+            printf("%s: wiringEndpointDescription_create w/ wireId %s started\n", TAG, wireId);
 
             if (status == CELIX_SUCCESS) {
                 service_tracker_pt tracker = NULL;
@@ -416,7 +416,7 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_en
 
                     if (status == CELIX_SUCCESS) {
                         hashMap_put(admin->wiringReceiveTracker, *wEndpointDescription, tracker);
-                        printf("WIRING_ADMIN: WiringReceiveTracker w/ wireId %s started\n", wireId);
+                        printf("%s: WiringReceiveTracker w/ wireId %s started\n", TAG, wireId);
                     } else {
                         serviceTracker_destroy(tracker);
                     }
@@ -424,7 +424,7 @@ celix_status_t wiringAdmin_exportWiringEndpoint(wiring_admin_pt admin, wiring_en
             }
         }
     } else {
-        printf("WIRING_ADMIN: Cannot export Wiring Endpoint\n");
+        printf("%s: Cannot export Wiring Endpoint\n", TAG);
     }
 
     celixThreadMutex_unlock(&admin->exportedWiringEndpointLock);
@@ -485,9 +485,9 @@ celix_status_t wiringAdmin_importWiringEndpoint(wiring_admin_pt admin, wiring_en
             hashMap_put(admin->wiringSendServices, wEndpointDescription, wiringSendService);
             hashMap_put(admin->wiringSendRegistrations, wEndpointDescription, wiringSendServiceReg);
 
-            printf("WIRING_ADMIN: SEND SERVICE sucessfully registered w/ wireId %s\n", wireId);
+            printf("%s: SEND SERVICE sucessfully registered w/ wireId %s\n", TAG, wireId);
         } else {
-            printf("WIRING_ADMIN: could not register SEND SERVICE w/ wireId %s\n", wireId);
+            printf("%s: could not register SEND SERVICE w/ wireId %s\n", TAG, wireId);
 
         }
     }
@@ -501,7 +501,7 @@ celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, w
     celixThreadMutex_lock(&admin->importedWiringEndpointLock);
     char* wireId = properties_get(wEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-    printf("WIRING_ADMIN: remove Wiring Endpoint w/ wireId %s\n", wireId);
+    printf("%s: remove Wiring Endpoint w/ wireId %s\n", TAG, wireId);
 
     wiring_send_service_pt wiringSendService = hashMap_remove(admin->wiringSendServices, wEndpointDescription);
     service_registration_pt wiringSendRegistration = hashMap_remove(admin->wiringSendRegistrations, wEndpointDescription);
@@ -546,6 +546,8 @@ static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char 
         curl_easy_setopt(curl, CURLOPT_READDATA, &post);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wiringAdmin_HTTPReqWrite);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&get);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (curl_off_t)post.size);
         res = curl_easy_perform(curl);
 
