@@ -121,7 +121,10 @@ celix_status_t wiringTopologyManager_WiringAdminServiceImportWiringEndpoint(wiri
             status = wiringAdminService->importWiringEndpoint(wiringAdminService->admin, wEndpoint);
 
             if (status != CELIX_SUCCESS) {
-                printf("WTM: importWiringEndpoint failed\n");
+                printf("WTM: importWiringEndpoint via %s failed.\n", wiringConfigAdmin);
+            }
+            else {
+                printf("WTM: importWiringEndpoint via %s suceeded.\n", wiringConfigAdmin);
             }
         } else {
             printf("WTM: Wiring Admin does not match requirements (%s=%s)\n", wiringConfigEndpoint, wiringConfigAdmin);
@@ -240,15 +243,20 @@ bool properties_match(properties_pt properties, properties_pt reference) {
         char* prop_value = (char*) hashMapEntry_getValue(prop_pair);
 
         // we do not consider service properties
-        if (strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_SERVICE_ID) == 0 || strcmp(prop_key, OSGI_FRAMEWORK_OBJECTCLASS) == 0
-                || strcmp(prop_key, "service.exported.interfaces") == 0) {
-            continue;
+        if (strcmp(prop_key, OSGI_RSA_ENDPOINT_FRAMEWORK_UUID) != 0 &&
+                strcmp(prop_key, OSGI_FRAMEWORK_SERVICE_ID) != 0 &&
+                strcmp(prop_key, OSGI_FRAMEWORK_OBJECTCLASS) != 0 &&
+                strcmp(prop_key, "service.exported.interfaces") != 0 &&
+                strcmp(prop_key, "type") != 0) {
+            char* ref_value = (char*) hashMap_get(reference, prop_key);
+            if (ref_value == NULL || (strcmp(ref_value, prop_value) != 0)) {
+                printf("WTM: %s: %s != %s \n", prop_key, ref_value, prop_value);
+                matching = false; // We found a pair in properties not included in reference
+            } else {
+                printf("WTM: %s: %s == %s \n", prop_key, ref_value, prop_value);
+            }
         }
 
-        char* ref_value = (char*) hashMap_get(reference, prop_key);
-        if (ref_value == NULL || (strcmp(ref_value, prop_value) != 0)) {
-            matching = false; // We found a pair in properties not included in reference
-        }
     }
     hashMapIterator_destroy(iter);
 
@@ -308,6 +316,8 @@ celix_status_t wiringTopologyManager_exportWiringEndpoint(wiring_topology_manage
          von ersterem gertiggeet. ich denke wir brachen eine weitere datenstruktur hier,
          welche sich alle serviceIds merkt
          */
+
+
 
         wiringAdminList = hashMap_get(manager->exportedWiringEndpoints, srvcProperties);
 
@@ -408,6 +418,7 @@ celix_status_t wiringTopologyManager_removeExportedWiringEndpoint(wiring_topolog
 
 celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manager_pt manager, properties_pt rsaProperties) {
     celix_status_t status = CELIX_SUCCESS;
+    celix_status_t status2 = CELIX_BUNDLE_EXCEPTION;
     hash_map_iterator_pt iter = NULL;
 
     celixThreadMutex_lock(&manager->importedWiringEndpointsLock);
@@ -437,6 +448,7 @@ celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manage
 
                     if (status == CELIX_SUCCESS) {
                         arrayList_add(wiringAdminList, wiringAdminService);
+                        status2 = status;
                     }
                 }
             }
@@ -450,7 +462,7 @@ celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manage
     hashMapIterator_destroy(iter);
     celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
 
-    return status;
+    return status2;
 }
 
 celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties) {
