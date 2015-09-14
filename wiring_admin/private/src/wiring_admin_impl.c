@@ -452,6 +452,7 @@ celix_status_t wiringAdmin_removeExportedWiringEndpoint(wiring_admin_pt admin, w
                 wiringAdmin_stopWebserver(admin);
             }
         }
+
         wiringEndpointDescription_destroy(&wEndpointDescription);
 
         celixThreadMutex_unlock(&admin->exportedWiringEndpointLock);
@@ -506,8 +507,11 @@ celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, w
     wiring_send_service_pt wiringSendService = hashMap_remove(admin->wiringSendServices, wEndpointDescription);
     service_registration_pt wiringSendRegistration = hashMap_remove(admin->wiringSendRegistrations, wEndpointDescription);
 
-    serviceRegistration_unregister(wiringSendRegistration);
-    free(wiringSendService);
+    status = serviceRegistration_unregister(wiringSendRegistration);
+
+    if (status == CELIX_SUCCESS) {
+        free(wiringSendService);
+    }
 
     celixThreadMutex_unlock(&admin->importedWiringEndpointLock);
 
@@ -517,9 +521,6 @@ celix_status_t wiringAdmin_removeImportedWiringEndpoint(wiring_admin_pt admin, w
 static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char *request, char **reply, int* replyStatus) {
 
     celix_status_t status = CELIX_SUCCESS;
-    wiring_admin_pt admin = sendService->admin;
-
-    celixThreadMutex_lock(&admin->importedWiringEndpointLock);
 
     struct post post;
     post.readptr = request;
@@ -563,8 +564,6 @@ static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char 
         curl_easy_cleanup(curl);
 
     }
-
-    celixThreadMutex_unlock(&admin->importedWiringEndpointLock);
 
     return status;
 }

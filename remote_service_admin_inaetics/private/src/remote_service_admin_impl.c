@@ -82,6 +82,7 @@ celix_status_t remoteServiceAdmin_create(bundle_context_pt context, remote_servi
 
         status = celixThreadMutex_create(&(*admin)->listenerListLock, NULL);
         celixThreadMutex_create(&(*admin)->wtmListLock, NULL);
+        celixThreadMutex_create(&(*admin)->sendServicesLock, NULL);
         celixThreadMutex_create(&(*admin)->exportedServicesLock, NULL);
         celixThreadMutex_create(&(*admin)->importedServicesLock, NULL);
 
@@ -104,6 +105,7 @@ celix_status_t remoteServiceAdmin_destroy(remote_service_admin_pt *admin) {
 
     arrayList_destroy((*admin)->exportedWires);
 
+    celixThreadMutex_destroy(&(*admin)->sendServicesLock);
     celixThreadMutex_destroy(&(*admin)->exportedServicesLock);
     celixThreadMutex_destroy(&(*admin)->importedServicesLock);
 
@@ -769,7 +771,7 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
         importRegistration_destroy(registration);
 
         if (arrayList_isEmpty(registration_factory->registrations)) {
-            logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy of service %s.", endpointDescription->service);
+            logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy of service %s", endpointDescription->service);
 
             serviceTracker_close(registration_factory->proxyFactoryTracker);
             importRegistrationFactory_close(registration_factory);
@@ -795,24 +797,29 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
     } else {
         wiring_send_service_pt wiringSendService = NULL;
 
-        wiringSendService = hashMap_get(admin->sendServices, wireId);
+        status = celixThreadMutex_lock(&admin->sendServicesLock);
 
-        if (wiringSendService == NULL) {
-            printf("RSA: No SendService w/ wireId %s found.\n", wireId);
-            status = CELIX_ILLEGAL_ARGUMENT;
-        } else {
-            json_t *root;
-            json_t *json_request;
-            json_error_t jsonError;
+        if (status == CELIX_SUCCESS) {
+            wiringSendService = hashMap_get(admin->sendServices, wireId);
 
-            json_request = json_loads(request, 0, &jsonError);
-            root = json_pack("{s:i, s:o}", "service.id", endpointDescription->serviceId, "request", json_request);
-            char *json_data = json_dumps(root, 0);
+            if (wiringSendService == NULL) {
+                printf("RSA: No SendService w/ wireId %s found.\n", wireId);
+                status = CELIX_ILLEGAL_ARGUMENT;
+            } else {
+                json_t *root;
+                json_t *json_request;
+                json_error_t jsonError;
 
-            status = wiringSendService->send(wiringSendService, json_data, reply, replyStatus);
+                json_request = json_loads(request, 0, &jsonError);
+                root = json_pack("{s:i, s:o}", "service.id", endpointDescription->serviceId, "request", json_request);
+                char *json_data = json_dumps(root, 0);
 
-            free(json_data);
-            json_decref(root);
+                status = wiringSendService->send(wiringSendService, json_data, reply, replyStatus);
+
+                free(json_data);
+                json_decref(root);
+            }
+            celixThreadMutex_unlock(&admin->sendServicesLock);
         }
     }
 
@@ -875,7 +882,12 @@ static celix_status_t remoteServiceAdmin_sendServiceAdded(void * handle, service
     wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
     char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
-    hashMap_put(admin->sendServices, wireId, wiringSendService);
+    status = celixThreadMutex_lock(&admin->sendServicesLock);
+
+    if (status == CELIX_SUCCESS) {
+        hashMap_put(admin->sendServices, wireId, wiringSendService);
+        status = celixThreadMutex_unlock(&admin->sendServicesLock);
+    }
 
     return status;
 }
@@ -894,7 +906,12 @@ static celix_status_t remoteServiceAdmin_sendServiceRemoved(void * handle, servi
     char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
     printf("RSA: remove Wiring Endpoint w/ wireId %s\n", wireId);
 
-    hashMap_remove(admin->sendServices, wireId);
+    status = celixThreadMutex_lock(&admin->sendServicesLock);
+
+    if (status == CELIX_SUCCESS) {
+        hashMap_remove(admin->sendServices, wireId);
+        status = celixThreadMutex_unlock(&admin->sendServicesLock);
+    }
 
     return status;
 }

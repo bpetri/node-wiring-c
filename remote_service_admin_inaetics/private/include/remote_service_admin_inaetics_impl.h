@@ -39,6 +39,7 @@ struct remote_service_admin {
 	array_list_pt exportedWires;
 
 	service_tracker_pt sendServicesTracker;
+	celix_thread_mutex_t sendServicesLock;
 	hash_map_pt sendServices;
 
     celix_thread_mutex_t listenerListLock;
