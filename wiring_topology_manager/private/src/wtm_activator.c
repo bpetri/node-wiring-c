@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "constants.h"
 #include "bundle_activator.h"
@@ -95,6 +96,7 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
 
     properties_pt props = properties_create();
     properties_set(props, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, scope);
+    properties_set(props, (char *) "WTM", "true");
 
     bundleContext_registerService(context, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SERVICE, wEndpointListener, props, &activator->wiringEndpointListenerService);
 

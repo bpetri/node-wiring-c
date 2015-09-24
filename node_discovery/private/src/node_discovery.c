@@ -268,6 +268,7 @@ celix_status_t node_discovery_removeNode(node_discovery_pt node_discovery, node_
                     char* wireId = properties_get(wep->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
                     if (strcmp(wireId, rmWireId) == 0) {
+                        printf("NODE_DISCOVERY: Removing Wiring Endpoint %s - %s\n", node_desc->nodeId, rmWireId);
                         node_discovery_informWiringEndpointListeners(node_discovery, wep, false);
                         arrayListIterator_remove(wep_it);
                     }
@@ -298,6 +299,7 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
     if (status == CELIX_SUCCESS) {
         if (node_discovery->listenerReferences != NULL) {
             hash_map_iterator_pt iter = hashMapIterator_create(node_discovery->listenerReferences);
+
             while (hashMapIterator_hasNext(iter)) {
                 hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
 
@@ -305,16 +307,14 @@ celix_status_t node_discovery_informWiringEndpointListeners(node_discovery_pt no
                 wiring_endpoint_listener_pt listener = NULL;
 
                 char* scope = NULL;
-                char* rsa = NULL;
                 serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
-                serviceReference_getProperty(reference, (char *) "RSA", &rsa);
 
                 filter_pt filter = filter_create(scope);
                 bool matchResult = false;
 
                 filter_match(filter, wEndpoint->properties, &matchResult);
 
-                if (matchResult && rsa == NULL) {
+                if (matchResult) {
                     bundleContext_getService(node_discovery->context, reference, (void**) &listener);
                     if (wEndpointAdded) {
                         listener->wiringEndpointAdded(listener->handle, wEndpoint, scope);
@@ -422,8 +422,10 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 
     node_discovery_pt nodeDiscovery = handle;
 
-    char *nodeDiscoveryListener = NULL;
+    char* nodeDiscoveryListener = NULL;
+
     serviceReference_getProperty(reference, "NODE_DISCOVERY", &nodeDiscoveryListener);
+
     char *scope = NULL;
     serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
 
@@ -447,6 +449,7 @@ celix_status_t node_discovery_wiringEndpointListenerAdded(void * handle, service
 
                 bool matchResult = false;
                 filter_match(filter, ep_desc->properties, &matchResult);
+
                 if (matchResult) {
                     wiring_endpoint_listener_pt listener = service;
                     listener->wiringEndpointAdded(listener->handle, ep_desc, NULL);

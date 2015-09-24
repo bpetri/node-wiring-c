@@ -71,7 +71,7 @@ celix_status_t remoteServiceAdmin_create(bundle_context_pt context, remote_servi
         arrayList_create(&(*admin)->wtmList);
 
         (*admin)->exportedServices = hashMap_create(NULL, NULL, NULL, NULL);
-        (*admin)->importedServices = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
+        (*admin)->importedServices = hashMap_create(NULL, NULL, NULL, NULL);
         (*admin)->wiringReceiveServices = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->wiringReceiveServiceRegistrations = hashMap_create(utils_stringHash, NULL, utils_stringEquals, NULL);
         (*admin)->sendServicesTracker = NULL;
@@ -190,6 +190,7 @@ static celix_status_t remoteServiceAdmin_wireIdEquals(void *a, void *b, bool *eq
     return CELIX_SUCCESS;
 }
 
+
 static celix_status_t remoteServiceAdmin_receive(void* handle, char* data, char**response) {
     celix_status_t status = CELIX_ILLEGAL_ARGUMENT;
     remote_service_admin_pt admin = (remote_service_admin_pt) handle;
@@ -256,12 +257,12 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
     if (status == CELIX_SUCCESS) {
         wireId = properties_get(wEndpoint->properties, (char*) WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
         wireUuid = properties_get(wEndpoint->properties, (char*) OSGI_RSA_ENDPOINT_FRAMEWORK_UUID);
-        exportServiceId = properties_get(wEndpoint->properties, (char*) "requested.service.id");
 
-        printf("RSA: callback received - wire available for serviceId %s\n", exportServiceId);
+        /* added wiring enpoint is used for export */
+        if (wireUuid != NULL && strcmp(ownUuid, wireUuid) == 0) {
+            exportServiceId = properties_get(wEndpoint->properties, (char*) "requested.service.id");
+            printf("RSA: exported wire available %s for serviceId %s\n", wireUuid, exportServiceId);
 
-        //if uuid = own fw uuid -> exported, otherwise imported
-        if (strcmp(ownUuid, wireUuid) == 0) {
             if (!arrayList_contains(admin->exportedWires, wireId)) {
                 arrayList_add(admin->exportedWires, wireId);
             }
@@ -307,6 +308,36 @@ celix_status_t remoteServiceAdmin_addWiringEndpoint(void *handle, wiring_endpoin
 
             status = celixThreadMutex_unlock(&admin->exportedServicesLock);
         }
+        /* added wiring enpoint is used for import */
+        else {
+            char* id = properties_get(wEndpoint->properties, "requested.service");
+            printf("RSA: imported wiring endpoint available - wire %s service %s\n", wireUuid, id);
+
+            celixThreadMutex_lock(&admin->importedServicesLock);
+
+            if (hashMap_size(admin->importedServices) == 0) {
+                printf("RSA: No imported services found!\n");
+            }
+
+            hash_map_iterator_pt importedServicesIterator = hashMapIterator_create(admin->importedServices);
+            while (hashMapIterator_hasNext(importedServicesIterator)) {
+                hash_map_entry_pt entry = hashMapIterator_nextEntry(importedServicesIterator);
+                endpoint_description_pt endpointDescription = hashMapEntry_getKey(entry);
+
+                if (strcmp(id, endpointDescription->id) == 0) {
+                    import_registration_factory_pt registration_factory = hashMapEntry_getValue(entry);
+
+                    // we create an importRegistration per imported service
+                    registration_factory->trackedFactory->registerProxyService(registration_factory->trackedFactory->factory, endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send);
+
+                    printf("RSA: proxyService registered for %s w/ wireId %s.", endpointDescription->service, wireId);
+                }
+            }
+
+            hashMapIterator_destroy(importedServicesIterator);
+
+            celixThreadMutex_unlock(&admin->importedServicesLock);
+        }
     }
 
     return status;
@@ -318,6 +349,9 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
     remote_service_admin_pt admin = (remote_service_admin_pt) handle;
     char* wireId = properties_get(wEndpoint->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
 
+    printf("RSA: Removing wiring endpoint w/ wireId %s\n", wireId);
+
+    /* handle exported Wires */
     array_list_pt exportRegistrationList = NULL;
     arrayList_create(&exportRegistrationList);
 
@@ -363,6 +397,68 @@ celix_status_t remoteServiceAdmin_removeWiringEndpoint(void *handle, wiring_endp
 
     status = remoteServiceAdmin_unregisterReceive(admin, wireId);
 
+
+    /* handle imported Wires */
+    celixThreadMutex_lock(&admin->importedServicesLock);
+
+    if (hashMap_size(admin->importedServices) == 0) {
+        printf("RSA: No imported services found!\n");
+    }
+
+    hash_map_iterator_pt importedServicesIterator = hashMapIterator_create(admin->importedServices);
+    while (hashMapIterator_hasNext(importedServicesIterator)) {
+        hash_map_entry_pt entry = hashMapIterator_nextEntry(importedServicesIterator);
+        endpoint_description_pt endpointDescription = hashMapEntry_getKey(entry);
+
+        char* regWireId = properties_get(endpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
+
+        if (regWireId == NULL) {
+            printf("RSA: No wireId found in endpointDescription for %s\n", endpointDescription->service);
+        }
+        else if (strcmp(wireId, regWireId) == 0) {
+
+            /* TODO: registration handling missing - combine w/ removeImportedService */
+            import_registration_factory_pt registration_factory = hashMapEntry_getValue(entry);
+
+            // unregister proxy service per wireId
+            registration_factory->trackedFactory->unregisterProxyService(registration_factory->trackedFactory->factory, endpointDescription);
+
+            // search for registrations
+            import_registration_pt registration = NULL;
+            unsigned int size = arrayList_size(registration_factory->registrations);
+            unsigned int i = 0;
+
+            for(; i < size; ++i) {
+                    registration = arrayList_get(registration_factory->registrations, i);
+
+                    if (registration->endpointDescription == endpointDescription) {
+                        arrayList_removeElement(registration_factory->registrations, registration);
+                        importRegistration_destroy(registration);
+                        break;
+                    }
+            }
+
+
+            if (arrayList_isEmpty(registration_factory->registrations)) {
+                logHelper_log(admin->loghelper, OSGI_LOGSERVICE_INFO, "RSA: closing proxy of service %s", endpointDescription->service);
+
+                serviceTracker_close(registration_factory->proxyFactoryTracker);
+                importRegistrationFactory_close(registration_factory);
+
+                importRegistrationFactory_destroy(&registration_factory);
+            }
+
+            hashMap_remove(admin->importedServices, endpointDescription);
+
+            printf("RSA: proxyService unregistered for %s w/ wireId %s.", endpointDescription->service, wireId);
+        }
+    }
+
+    hashMapIterator_destroy(importedServicesIterator);
+
+    celixThreadMutex_unlock(&admin->importedServicesLock);
+
+
     return status;
 }
 
@@ -404,7 +500,6 @@ static celix_status_t remoteServiceAdmin_registerReceive(remote_service_admin_pt
 static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_pt admin, char* wireId) {
     celix_status_t status = CELIX_SUCCESS;
 
-    printf("RSA: unregisterReceive w/ wireId %s\n", wireId);
 
     service_registration_pt wiringReceiveServiceRegistration = hashMap_remove(admin->wiringReceiveServiceRegistrations, wireId);
     wiring_receive_service_pt wiringReceiveService = hashMap_remove(admin->wiringReceiveServices, wireId);
@@ -421,6 +516,7 @@ static celix_status_t remoteServiceAdmin_unregisterReceive(remote_service_admin_
             serviceReference_getProperty(reference, (char*) INAETICS_WIRING_WIRE_ID, &serviceWireId);
 
             if (strcmp(wireId, serviceWireId) == 0) {
+                printf("RSA: unregisterReceive w/ wireId %s\n", wireId);
                 status = serviceRegistration_unregister(wiringReceiveServiceRegistration);
             }
         }
@@ -636,8 +732,6 @@ celix_status_t remoteServiceAdmin_installEndpoint(remote_service_admin_pt admin,
     properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED, "true");
     properties_set(endpointProperties, (char*) OSGI_RSA_SERVICE_IMPORTED_CONFIGS, (char*) CONFIGURATION_TYPE);
 
-    printf("RSA: INSTALL ENDPOINT w/ UUID %s\n", endpoint_uuid);
-
     endpoint_description_pt endpointDescription = NULL;
     remoteServiceAdmin_createEndpointDescription(admin, reference, endpointProperties, interface, &endpointDescription);
 
@@ -703,54 +797,72 @@ celix_status_t remoteServiceAdmin_importService(remote_service_admin_pt admin, e
         printf("RSA: Missing WireId for service %s\n", endpointDescription->service);
         status = CELIX_SERVICE_EXCEPTION;
     } else {
+        printf("RSA: Import service %s w/ wireId %s\n", endpointDescription->service, wireId);
 
-        import_registration_factory_pt registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
+        import_registration_factory_pt registration_factory = NULL;
+
+        hash_map_iterator_pt iter = hashMapIterator_create(admin->importedServices);
+        while (hashMapIterator_hasNext(iter) && registration_factory == NULL) {
+            hash_map_entry_pt entry = hashMapIterator_nextEntry(iter);
+            endpoint_description_pt importedEndpointDescription = (endpoint_description_pt) hashMapEntry_getKey(entry);
+
+            if (strcmp(importedEndpointDescription->service, endpointDescription->service) == 0) {
+                registration_factory = (import_registration_factory_pt) hashMapEntry_getValue(entry);
+            }
+        }
+
+        hashMapIterator_destroy(iter);
 
         // check whether we already have a registration_factory registered in the hashmap
         if (registration_factory == NULL) {
             status = importRegistrationFactory_install(admin->loghelper, endpointDescription->service, admin->context, &registration_factory);
-            if (status == CELIX_SUCCESS) {
-                hashMap_put(admin->importedServices, endpointDescription->service, registration_factory);
+            if (status != CELIX_SUCCESS) {
+                printf("RSA: Could not install importRegistrationFactory for %s\n", endpointDescription->service);
             }
         }
 
-        array_list_pt localWTMs = NULL;
-        remoteServiceAdmin_getWTMs(admin, &localWTMs);
 
-        int size = arrayList_size(localWTMs);
-        if (size == 0) {
-            printf("RSA: No WTM available yet.\n");
-        }
-        int iter;
-        for (iter = 0; iter < size; iter++) {
-            wiring_topology_manager_service_pt wtmService = arrayList_get(localWTMs, iter);
-            properties_pt rsaProperties = properties_create();
+        if (registration_factory != NULL) {
+            array_list_pt localWTMs = NULL;
+            remoteServiceAdmin_getWTMs(admin, &localWTMs);
 
-            properties_set(rsaProperties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
 
-            if (wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) == CELIX_SUCCESS) {
+            importRegistration_create(endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send, admin->context, registration);
+            arrayList_add(registration_factory->registrations, *registration);
 
-                // factory available
-                if (status != CELIX_SUCCESS || (registration_factory->trackedFactory == NULL)) {
-                    logHelper_log(admin->loghelper, OSGI_LOGSERVICE_WARNING, "RSA: no proxyFactory available.");
-                    if (status == CELIX_SUCCESS) {
-                        status = CELIX_SERVICE_EXCEPTION;
-                    }
-                } else {
-                    // we create an importRegistration per imported service
-                    importRegistration_create(endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send, admin->context, registration);
-                    registration_factory->trackedFactory->registerProxyService(registration_factory->trackedFactory->factory, endpointDescription, admin, (sendToHandle) &remoteServiceAdmin_send);
+            hashMap_put(admin->importedServices, endpointDescription, registration_factory);
 
-                    arrayList_add(registration_factory->registrations, *registration);
-                }
+            int size = arrayList_size(localWTMs);
+            if (size == 0) {
+                printf("RSA: No WTM available yet.\n");
+            }
+
+
+            int iter;
+            for (iter = 0; iter < size; iter++) {
+                wiring_topology_manager_service_pt wtmService = arrayList_get(localWTMs, iter);
+                properties_pt rsaProperties = properties_create();
+
+                properties_set(rsaProperties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY, wireId);
+                properties_set(rsaProperties, "requested.service", endpointDescription->id);
+
+                // TODO: move locking
+                celixThreadMutex_unlock(&admin->importedServicesLock);
+                wtmService->importWiringEndpoint(wtmService->manager, rsaProperties) ;
+                celixThreadMutex_lock(&admin->importedServicesLock);
             }
         }
+
     }
 
     celixThreadMutex_unlock(&admin->importedServicesLock);
 
+    /* we should return SUCCESS here, otherwise the TPM will not add it to
+     * its list of importedRegistrations and cannot remove it later on
+     */
     return status;
 }
+
 
 celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt admin, import_registration_pt registration) {
     celix_status_t status = CELIX_SUCCESS;
@@ -759,7 +871,18 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
 
     celixThreadMutex_lock(&admin->importedServicesLock);
 
-    registration_factory = (import_registration_factory_pt) hashMap_get(admin->importedServices, endpointDescription->service);
+    /* get according registration factory */
+    hash_map_iterator_pt importedServicesIterator = hashMapIterator_create(admin->importedServices);
+    while (hashMapIterator_hasNext(importedServicesIterator) && registration_factory == NULL) {
+        hash_map_entry_pt entry = hashMapIterator_nextEntry(importedServicesIterator);
+        endpoint_description_pt importedEndpointDescription = hashMapEntry_getKey(entry);
+
+        if (strcmp(importedEndpointDescription->id, endpointDescription->id) == 0) {
+            registration_factory = (import_registration_factory_pt) hashMapEntry_getValue(entry);
+        }
+    }
+
+    hashMapIterator_destroy(importedServicesIterator);
 
     // factory available
     if ((registration_factory == NULL) || (registration_factory->trackedFactory == NULL)) {
@@ -776,13 +899,16 @@ celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_pt 
             serviceTracker_close(registration_factory->proxyFactoryTracker);
             importRegistrationFactory_close(registration_factory);
 
-            hashMap_remove(admin->importedServices, endpointDescription->service);
-
             importRegistrationFactory_destroy(&registration_factory);
         }
+
+        hashMap_remove(admin->importedServices, endpointDescription);
+
     }
 
     celixThreadMutex_unlock(&admin->importedServicesLock);
+
+
 
     return status;
 }
@@ -811,10 +937,16 @@ celix_status_t remoteServiceAdmin_send(remote_service_admin_pt admin, endpoint_d
                 json_error_t jsonError;
 
                 json_request = json_loads(request, 0, &jsonError);
-                root = json_pack("{s:i, s:o}", "service.id", endpointDescription->serviceId, "request", json_request);
+                long serviceId = endpointDescription->serviceId;
+                root = json_pack("{s:i, s:o}", "service.id", serviceId, "request", json_request);
                 char *json_data = json_dumps(root, 0);
 
                 status = wiringSendService->send(wiringSendService, json_data, reply, replyStatus);
+
+                if (status != CELIX_SUCCESS || *reply == NULL) {
+                    printf("RSA: wireSendService->send of wireId %s return no success\n", wireId);
+                }
+
 
                 free(json_data);
                 json_decref(root);
@@ -904,7 +1036,7 @@ static celix_status_t remoteServiceAdmin_sendServiceRemoved(void * handle, servi
 
     wiring_send_service_pt wiringSendService = (wiring_send_service_pt) service;
     char* wireId = properties_get(wiringSendService->wiringEndpointDescription->properties, WIRING_ENDPOINT_DESCRIPTION_WIRE_ID_KEY);
-    printf("RSA: remove Wiring Endpoint w/ wireId %s\n", wireId);
+    printf("RSA: Send Service Removed for wireId %s\n", wireId);
 
     status = celixThreadMutex_lock(&admin->sendServicesLock);
 
@@ -912,6 +1044,7 @@ static celix_status_t remoteServiceAdmin_sendServiceRemoved(void * handle, servi
         hashMap_remove(admin->sendServices, wireId);
         status = celixThreadMutex_unlock(&admin->sendServicesLock);
     }
+
 
     return status;
 }

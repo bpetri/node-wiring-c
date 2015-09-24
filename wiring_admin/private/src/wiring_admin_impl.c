@@ -56,6 +56,7 @@ static celix_status_t wiringAdmin_wiringReceiveRemoved(void * handle, service_re
 
 static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char *request, char **reply, int* replyStatus);
 
+
 celix_status_t wiringAdmin_create(bundle_context_pt context, wiring_admin_pt *admin) {
     celix_status_t status = CELIX_SUCCESS;
 
@@ -547,8 +548,8 @@ static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char 
         curl_easy_setopt(curl, CURLOPT_READDATA, &post);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wiringAdmin_HTTPReqWrite);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&get);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (curl_off_t)post.size);
         res = curl_easy_perform(curl);
 
@@ -562,7 +563,6 @@ static celix_status_t wiringAdmin_send(wiring_send_service_pt sendService, char 
         }
 
         curl_easy_cleanup(curl);
-
     }
 
     return status;

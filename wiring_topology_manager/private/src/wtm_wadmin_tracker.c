@@ -102,7 +102,7 @@ celix_status_t wiringTopologyManager_waAdded(void * handle, service_reference_pt
         wiring_endpoint_description_pt wEndpoint = hashMapEntry_getKey(entry);
         array_list_pt wiringAdminList = hashMapEntry_getValue(entry);
 
-        status = wiringTopologyManager_WiringAdminServiceImportWiringEndpoint(manager, wiringAdminService, wEndpoint);
+        status = wiringTopologyManager_checkWiringAdminForImportWiringEndpoint(manager, wiringAdminService, wEndpoint);
 
         if (status == CELIX_SUCCESS) {
             arrayList_add(wiringAdminList, wiringAdminService);
@@ -110,6 +110,10 @@ celix_status_t wiringTopologyManager_waAdded(void * handle, service_reference_pt
 
     }
     hashMapIterator_destroy(iter);
+
+
+    /* check wether waiting service can be exported */
+    wiringTopologyManager_checkWaitingForImportServices(manager);
 
     celixThreadMutex_unlock(&manager->importedWiringEndpointsLock);
 

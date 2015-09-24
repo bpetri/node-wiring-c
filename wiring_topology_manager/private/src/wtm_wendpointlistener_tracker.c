@@ -2,6 +2,8 @@
  * Licensed under Apache License v2. See LICENSE for more information.
  */
 
+#include <string.h>
+
 #include "service_tracker.h"
 #include "wiring_topology_manager_impl.h"
 
@@ -33,19 +35,22 @@ celix_status_t wiringTopologyManager_wiringEndpointListenerAdded(void* handle, s
     celix_status_t status = CELIX_SUCCESS;
     wiring_topology_manager_pt manager = handle;
     char *scope = NULL;
-
-    status = celixThreadMutex_lock(&manager->listenerListLock);
-
-    if (status == CELIX_SUCCESS) {
-        hashMap_put(manager->listenerList, reference, NULL);
-        celixThreadMutex_unlock(&manager->listenerListLock);
-    }
+    char* wtm = NULL;
 
     serviceReference_getProperty(reference, (char *) INAETICS_WIRING_ENDPOINT_LISTENER_SCOPE, &scope);
+    serviceReference_getProperty(reference, "WTM", &wtm);
 
-    char *nodeDiscoveryListener = NULL;
-    serviceReference_getProperty(reference, "NODE_DISCOVERY", &nodeDiscoveryListener);
-    if (nodeDiscoveryListener != NULL && strcmp(nodeDiscoveryListener, "true") == 0) {
+    if (wtm != NULL && strcmp(wtm, "true") == 0) {
+        printf("WTM: Ignoring own ENDPOINT_LISTENER\n");
+    }
+    else {
+        status = celixThreadMutex_lock(&manager->listenerListLock);
+
+        if (status == CELIX_SUCCESS) {
+            hashMap_put(manager->listenerList, reference, NULL);
+            celixThreadMutex_unlock(&manager->listenerListLock);
+        }
+
         filter_pt filter = filter_create(scope);
         status = celixThreadMutex_lock(&manager->exportedWiringEndpointsLock);
 
@@ -74,9 +79,9 @@ celix_status_t wiringTopologyManager_wiringEndpointListenerAdded(void* handle, s
             celixThreadMutex_unlock(&manager->exportedWiringEndpointsLock);
         }
         filter_destroy(filter);
-    } else {
-        printf("WTM: Ignoring Non-Discovery ENDPOINT_LISTENER\n");
+
     }
+
 
     return status;
 }

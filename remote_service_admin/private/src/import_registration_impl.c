@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <constants.h>
+#include <string.h>
 
 #include "celix_errno.h"
 

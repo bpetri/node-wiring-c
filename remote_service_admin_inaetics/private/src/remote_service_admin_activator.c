@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "bundle_activator.h"
 #include "constants.h"
@@ -70,6 +71,11 @@ celix_status_t bundleActivator_start(void * userData, bundle_context_pt context)
             if (status != CELIX_SUCCESS) {
                 printf("RSA: Creation of WTMTracker failed\n");
             } else {
+
+                /* the rsa also has a wiringEndpointListener because it needs to be informed, when a
+                 * wiring endpoint has been sucessfully exported/imported and therefore it
+                 * the according services can be exported/imported.
+                 */
                 wEndpointListener->handle = (void*) activator->admin;
                 wEndpointListener->wiringEndpointAdded = remoteServiceAdmin_addWiringEndpoint;
                 wEndpointListener->wiringEndpointRemoved = remoteServiceAdmin_removeWiringEndpoint;

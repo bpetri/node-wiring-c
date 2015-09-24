@@ -26,6 +26,7 @@ struct wiring_topology_manager {
     hash_map_pt exportedWiringEndpoints;
 
     array_list_pt waitingForExport;
+    array_list_pt waitingForImport;
 
     celix_thread_mutex_t importedWiringEndpointsLock;
     hash_map_pt importedWiringEndpoints;
@@ -65,6 +66,8 @@ celix_status_t wiringTopologyManager_importWiringEndpoint(wiring_topology_manage
 celix_status_t wiringTopologyManager_removeImportedWiringEndpoint(wiring_topology_manager_pt manager, properties_pt properties);
 
 celix_status_t wiringTopologyManager_WiringAdminServiceExportWiringEndpoint(wiring_topology_manager_pt manager, wiring_admin_service_pt wiringAdminService, properties_pt srvcProperties,  wiring_endpoint_description_pt* wEndpoint);
-celix_status_t wiringTopologyManager_WiringAdminServiceImportWiringEndpoint(wiring_topology_manager_pt manager, wiring_admin_service_pt wiringAdminService, wiring_endpoint_description_pt wEndpoint);
+celix_status_t wiringTopologyManager_checkWiringAdminForImportWiringEndpoint(wiring_topology_manager_pt manager, wiring_admin_service_pt wiringAdminService, wiring_endpoint_description_pt wEndpoint);
+celix_status_t wiringTopologyManager_checkWiringEndpointForImportService(wiring_topology_manager_pt manager, wiring_endpoint_description_pt wiringEndpointDesc, properties_pt requiredProperties);
+celix_status_t wiringTopologyManager_checkWaitingForImportServices(wiring_topology_manager_pt manager);
 
 #endif /* WIRING_TOPOLOGY_MANAGER_IMPL_H_ */
