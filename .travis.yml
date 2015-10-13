@@ -1,12 +1,10 @@
 sudo: required
 
-language: bash
-
-services:
-  - docker
+language: c
 
 before_install:
-  - sudo apt-get install default-jdk
+  - sudo apt-get update 
+  - sudo apt-get install -y default-jdk
   - docker run bpetri/cagent_builder build_script > cagent_builder.sh && chmod +x cagent_builder.sh 
 
 install:
