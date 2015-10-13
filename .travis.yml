@@ -13,9 +13,6 @@ before_install:
 install:
   - ./cagent_builder.sh make_bundles
 
-after_success:
-  - cd deploy  
-
 deploy:
   provider: bintray
   file: ${TRAVIS_BUILD_DIR}/deployment.json

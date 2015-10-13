@@ -11,7 +11,7 @@
 
     "files":
         [
-        {"includePattern": "bpetri/node-wiring-c/deploy/(.*)", "uploadPattern": "$1"}
+        {"includePattern": "deploy/(.*)", "uploadPattern": "$1"}
         ],
     "publish": true
 }
