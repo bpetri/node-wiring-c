@@ -15,6 +15,6 @@ install:
 
 deploy:
   provider: bintray
-  file: ${TRAVIS_BUILD_DIR}/deployment.json
+  file: $TRAVIS_BUILD_DIR/deployment.json
   user: bpetri
-  key: b074c928dd8765ccbbacadb863fd9520b6a07984
+  key: $BINTRAY_KEY
