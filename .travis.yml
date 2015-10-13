@@ -7,7 +7,7 @@ services:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -qq default-jre
+  - sudo apt-get install -qq default-jdk
   - docker run bpetri/cagent_builder build_script > cagent_builder.sh && chmod +x cagent_builder.sh 
 
 install:
