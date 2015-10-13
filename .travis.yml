@@ -1,0 +1,21 @@
+sudo: required
+
+language: bash
+
+services:
+  - docker
+
+before_install:
+  - docker run bpetri/cagent_builder build_script > cagent_builder.sh && chmod +x cagent_builder.sh 
+
+install:
+  - ./cagent_builder.sh make_bundles
+
+after_success:
+  - cd deploy  
+
+deploy:
+  provider: bintray
+  file: deployment.json
+  user: bpetri
+  key: b074c928dd8765ccbbacadb863fd9520b6a07984
