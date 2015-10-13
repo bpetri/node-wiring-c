@@ -6,12 +6,12 @@
     },
 
     "version": {
-        "name": "0.5"
+        "name": "latest"
     },
 
     "files":
         [
-        {"includePattern": "deploy/(.*)", "uploadPattern": "$1"}
+        {"includePattern": "${TRAVIS_BUILD_DIR}/deploy/(.*)", "uploadPattern": "$1"}
         ],
     "publish": true
 }
