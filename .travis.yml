@@ -1,4 +1,4 @@
-sudo: false
+sudo: required
 
 language: bash
 
@@ -6,6 +6,7 @@ services:
   - docker
 
 before_install:
+  - sudo rm /var/lib/apt/lists/* -vf
   - sudo apt-get update 
   - sudo apt-get install -y default-jdk
   - docker run bpetri/cagent_builder build_script > cagent_builder.sh && chmod +x cagent_builder.sh 
