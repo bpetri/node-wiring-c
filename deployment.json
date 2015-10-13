@@ -2,7 +2,7 @@
     "package": {
         "name": "node-wiring-c", // Bintray package name
         "repo": "inaetics", // Bintray repository name
-        "subject": "bpetri" // Bintray subject (user or organization)
+        "subject": "inaetics" // Bintray subject (user or organization)
     },
 
     "version": {
