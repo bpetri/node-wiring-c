@@ -13,8 +13,9 @@ before_install:
 install:
   - ./cagent_builder.sh make_bundles
 
-deploy:
-  provider: bintray
-  file: $TRAVIS_BUILD_DIR/deployment.json
-  user: bpetri
-  key: $BINTRAY_KEY
+after_success:
+  - git clone https://github.com/bpetri/deployment_test.git $TRAVIS_BUILD_DIR/deployment_test && cd $TRAVIS_BUILD_DIR/deployment_test
+  - git config credential.helper "store --file=.git/credentials"
+  - echo "https://$GITHUB_TOKEN:@github.com" > .git/credentials
+  - cp $TRAVIS_BUILD_DIR/deploy/*.jar $TRAVIS_BUILD_DIR/deployment_test 
+  - git add *.jar && git commit -m "build $TRAVIS_REPO_SLUG $TRAVIS_COMMIT" && git push -f 
